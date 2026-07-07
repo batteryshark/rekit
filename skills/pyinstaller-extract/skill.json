@@ -1,0 +1,41 @@
+{
+  "id": "pyinstaller-extract",
+  "name": "PyInstaller Extractor",
+  "version": "0.1.0",
+  "description": "Carve the Python out of a PyInstaller executable: locate the appended CArchive, extract every entry, and unpack the inner PYZ into individual .pyc files with reconstructed headers — ready for pyc-decompile. Pure stdlib. Static: parses archive structures and marshal.loads the PYZ TOC (deserialization, not execution); never runs the executable or the extracted code.",
+  "capabilities": ["extract-pyinstaller", "carve-pyc"],
+  "prerequisites": [
+    {
+      "tool": "python3",
+      "min_version": "3.8",
+      "check": ["python3", "--version"],
+      "install_hint": "Install Python 3.8+ — pure stdlib, no other dependency."
+    }
+  ],
+  "safety": {
+    "executes_input": "no",
+    "network": "none",
+    "tier": 1,
+    "notes": "Static. Parses the CArchive/PYZ byte structures and marshal.loads the PYZ table of contents (deserialization — does NOT execute code objects). Never launches the executable or imports/runs any extracted module. Path-traversal + per-file guards on extraction."
+  },
+  "entry": {
+    "command": ["python3", "runtime/extract.py"],
+    "args": [
+      {"name": "input",    "type": "file", "required": true,  "desc": "a PyInstaller-built executable (onefile or onedir main)"},
+      {"name": "outdir",   "type": "dir",  "required": true,  "desc": "output dir; .pyc land in PYZ-contents/"},
+      {"name": "--format", "type": "enum", "required": false, "desc": "text | json (default text)"}
+    ],
+    "result": {
+      "channel": "stdout",
+      "format": "text|json",
+      "fields": {"ok": "bool", "isPyInstaller": "bool", "pythonVersion": "string", "archiveEntries": "int", "filesWritten": "int", "pyzModulesExtracted": "int", "extractedTo": "string"}
+    }
+  },
+  "payload": {
+    "tool": "(builtin)",
+    "vendored": null,
+    "runner": "runtime/extract.py",
+    "pure_stdlib": true,
+    "note": "Zero-dependency (pyinstxtractor-style). Closes the Python-malware chain: unpack → pyinstaller-extract → pyc-decompile → py-covert-scan. Reconstructs .pyc headers from the PYZ's embedded magic so decompyle3/pyc-decompile can read them (best on 3.7-3.8 targets)."
+  }
+}
