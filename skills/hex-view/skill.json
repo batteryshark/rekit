@@ -1,0 +1,43 @@
+{
+  "id": "hex-view",
+  "name": "Hex Viewer",
+  "version": "0.1.0",
+  "description": "Non-interactive hex dump of a file or byte range (offset + hex + ASCII), with total size and sha256. Pure-Python stdlib, no dependencies. Reads bytes only — never executes the input.",
+  "capabilities": ["hex-view", "hex-dump", "inspect-bytes"],
+  "prerequisites": [
+    {
+      "tool": "python3",
+      "min_version": "3.8",
+      "check": ["python3", "--version"],
+      "install_hint": "Install Python 3.8+ (standard on macOS/Linux). No other dependency — this skill is pure stdlib."
+    }
+  ],
+  "safety": {
+    "executes_input": "no",
+    "network": "none",
+    "tier": 0,
+    "notes": "Read-only. Opens the file for bytes and prints a hex view. Never imports, parses as code, or executes the input."
+  },
+  "entry": {
+    "command": ["python3", "runtime/hexview.py"],
+    "args": [
+      {"name": "input",    "type": "file", "required": true,  "desc": "file to dump"},
+      {"name": "--offset", "type": "int",  "required": false, "desc": "start byte offset (default 0; negative = from end)"},
+      {"name": "--length", "type": "int",  "required": false, "desc": "bytes to show (default 256; 0 = whole file, capped at 1 MiB)"},
+      {"name": "--width",  "type": "int",  "required": false, "desc": "bytes per row (default 16)"},
+      {"name": "--format", "type": "enum", "required": false, "desc": "text | json (default text)"}
+    ],
+    "result": {
+      "channel": "stdout",
+      "format": "text|json",
+      "fields": {"ok": "bool", "path": "string", "offset": "int", "length": "int", "totalBytes": "int", "sha256": "string|null", "rows": "array"}
+    }
+  },
+  "payload": {
+    "tool": "(builtin)",
+    "vendored": null,
+    "runner": "runtime/hexview.py",
+    "pure_stdlib": true,
+    "note": "Zero-dependency skill — no runtime/ to vendor and no build step; the runner is pure Python stdlib. A third packaging pattern alongside js-deobfuscate (node_modules) and pyc-decompile (pip --target)."
+  }
+}
