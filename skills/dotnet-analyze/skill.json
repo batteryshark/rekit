@@ -1,0 +1,42 @@
+{
+  "id": "dotnet-analyze",
+  "name": ".NET Assembly Analyzer",
+  "version": "0.1.0",
+  "description": "Static triage of .NET / CLR managed assemblies (.dll/.exe) with dnfile: runtime version, assembly + referenced assemblies, type/method counts, IL-only vs mixed-mode, strong-name signing, unmanaged module refs, and the P/Invoke (DllImport) native-API surface classified by capability. Emits DOTNET.* atoms. Parses CLR metadata only — never loads or runs the assembly.",
+  "capabilities": ["analyze-dotnet", "analyze-clr-assembly", "binary-triage", "emit-atoms"],
+  "prerequisites": [
+    {
+      "tool": "python3",
+      "min_version": "3.8",
+      "check": ["python3", "--version"],
+      "install_hint": "Install Python 3.8+. dnfile is vendored (pure-python), so no network/install at analysis time. (No .NET runtime needed — this is static metadata parsing.)"
+    }
+  ],
+  "safety": {
+    "executes_input": "no",
+    "network": "none",
+    "tier": 1,
+    "notes": "Static CLR-metadata parse (dnfile). Never loads the assembly into a runtime, JITs, or executes it."
+  },
+  "entry": {
+    "command": ["python3", "runtime/analyze.py"],
+    "args": [
+      {"name": "input",    "type": "file", "required": true,  "desc": "path to a .NET assembly (.dll/.exe)"},
+      {"name": "--format", "type": "enum", "required": false, "desc": "text | json (default text)"}
+    ],
+    "result": {
+      "channel": "stdout",
+      "format": "text|json",
+      "fields": {"ok": "bool", "isDotNet": "bool", "runtime": "string", "assemblyName": "string", "referencedAssemblies": "array", "pinvokes": "array", "atoms": "array"}
+    }
+  },
+  "payload": {
+    "tool": "dnfile",
+    "source": "https://github.com/malwarefrank/dnfile",
+    "vendored": "runtime/site",
+    "runner": "runtime/analyze.py",
+    "build": "scripts/build.sh",
+    "pure_python": true,
+    "note": "Vendored via `uv pip install --target runtime/site` (pure-python, portable; NO .NET runtime needed). Complements pe-analyze: a native PE routes there, a managed PE is analysed here. The P/Invoke surface is where pure-IL malware touches the OS."
+  }
+}
