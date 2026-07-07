@@ -18,13 +18,12 @@ useful next.
 | `dotnet-analyze` | .NET/CLR triage + P/Invoke → `DOTNET.*` atoms | `uv pip --target` (dnfile) | python3 |
 | `bin-triage` | format ID + entropy + strings + embedded scan | pure stdlib | python3 |
 | `unpack` | recursive safe archive extraction | pure stdlib (+7z/unar CLI) | python3 |
+| `py-covert-scan` | STEGO/OBF/EVADE atoms in Python | pure stdlib | python3 |
 
-**PE/ELF/Mach-O/.NET static triage + `bin-triage` + `unpack`: complete.**
+**PE/ELF/Mach-O/.NET static triage + `bin-triage` + `unpack` + JS/Py covert-scan: complete.**
 
 ## Queued — source analysis
 
-- **`py-covert-scan`** — Python analog of js-covert-scan: `marshal`/`exec`/`compile`,
-  base64/hex-decode-then-exec, `os.environ`/timezone evasion, Unicode stego → atoms.
 - **`secrets-scan`** — API keys / tokens / private keys (high-signal regex + entropy).
 
 ## Queued — containers / carving / decompilers
