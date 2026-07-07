@@ -17,8 +17,9 @@ useful next.
 | `macho-analyze` | Mach-O triage → `BINARY.*` atoms | `uv pip --target` (macholib) | python3 |
 | `dotnet-analyze` | .NET/CLR triage + P/Invoke → `DOTNET.*` atoms | `uv pip --target` (dnfile) | python3 |
 | `bin-triage` | format ID + entropy + strings + embedded scan | pure stdlib | python3 |
+| `unpack` | recursive safe archive extraction | pure stdlib (+7z/unar CLI) | python3 |
 
-**PE/ELF/Mach-O/.NET static triage + format-agnostic `bin-triage`: complete.**
+**PE/ELF/Mach-O/.NET static triage + `bin-triage` + `unpack`: complete.**
 
 ## Queued — source analysis
 
@@ -28,9 +29,9 @@ useful next.
 
 ## Queued — containers / carving / decompilers
 
-- **`unpack`** — recursive archive extraction to a fixpoint. stdlib zip/tar/gz/bz2/xz
-  core **+ py7zr (7z, pure-python) + asar/whl/nupkg/deb**; RAR/CAB via optional
-  `unar`/`7z` on PATH (honest degradation when absent). Feeds the analyzers/decompilers.
+- **`unpack` follow-ups** — v1 does zip/tar/gz/bz2/xz (whl/nupkg are zip) + 7z/RAR via
+  CLI. Still to add: **asar** (Electron, pure-python parse) and **ar/deb** extraction.
+  (py7zr was rejected — native, python-ABI-locked deps; use the `7z` CLI instead.)
 - **`binwalk-carve`** — firmware / embedded-file carving & extraction (filesystems,
   bootloaders, nested archives) via **binwalk** (v3 is a Rust single-binary → its own
   prereq). The heavy sibling of `bin-triage`'s embedded-signature scan; still widely
