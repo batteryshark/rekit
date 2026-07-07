@@ -22,7 +22,7 @@ bin/skillpack run <id> <args...>      # run one (checks prereqs first)
 bin/skillpack info <id>               # manifest + SKILL.md
 ```
 
-## The skills (20)
+## The skills (21)
 
 **Source detection** (pure stdlib, read-only, emit atoms)
 | Skill | What | Prereq |
@@ -31,6 +31,7 @@ bin/skillpack info <id>               # manifest + SKILL.md
 | `py-covert-scan` | STEGO/OBF/EVADE in Python (decode-then-exec, marshal/pickle, sandbox/anti-debug) | python3 |
 | `secrets-scan` | leaked API keys / tokens / private keys (redacted) | python3 |
 | `yara-scan` | YARA signature scan (+ starter rule pack) | yara (BYO) |
+| `ioc-extract` | defanged IOCs (urls/ips/domains/hashes/CVEs/…) from any file | python3 |
 
 **Binary triage** (emit `BINARY.*`/`DOTNET.*` atoms)
 | Skill | What | Prereq |
