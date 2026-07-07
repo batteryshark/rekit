@@ -1,0 +1,40 @@
+{
+  "id": "py-covert-scan",
+  "name": "Python Covert-Tactics Scanner",
+  "version": "0.1.0",
+  "description": "Detect covert/evasive tactics in Python: hidden code execution (exec/eval/compile of base64/hex/zlib/marshal output, pickle deserialization, dynamic import, chr()/\\x string building), environment-keyed evasion (platform/VM/sandbox/analyst detection, timezone/locale, debugger/tracer checks), and Unicode steganography. Emits STEGO/OBF/EVADE atoms and flags family co-occurrence. Static and read-only.",
+  "capabilities": ["detect-py-obfuscation-tactics", "detect-py-evasion", "detect-steganography", "emit-atoms"],
+  "prerequisites": [
+    {
+      "tool": "python3",
+      "min_version": "3.8",
+      "check": ["python3", "--version"],
+      "install_hint": "Install Python 3.8+ — pure stdlib, no other dependency."
+    }
+  ],
+  "safety": {
+    "executes_input": "no",
+    "network": "none",
+    "tier": 0,
+    "notes": "Read-only static scan (regex + Unicode analysis). Never imports, compiles, or executes the input."
+  },
+  "entry": {
+    "command": ["python3", "runtime/scan.py"],
+    "args": [
+      {"name": "input",    "type": "path", "required": true,  "desc": "file OR directory of .py to scan"},
+      {"name": "--format", "type": "enum", "required": false, "desc": "text | json (default text)"}
+    ],
+    "result": {
+      "channel": "stdout",
+      "format": "text|json",
+      "fields": {"ok": "bool", "filesScanned": "int", "findingCount": "int", "summary": "object", "families": "array", "assessment": "string", "findings": "array"}
+    }
+  },
+  "payload": {
+    "tool": "(builtin)",
+    "vendored": null,
+    "runner": "runtime/scan.py",
+    "pure_stdlib": true,
+    "note": "Zero-dependency detector, the Python sibling of js-covert-scan (same STEGO/OBF/EVADE atom model). Strongest signal is decode-then-exec co-occurring with a sandbox/platform check (evasive dropper). Pairs with pyc-decompile for the Python-malware path."
+  }
+}
