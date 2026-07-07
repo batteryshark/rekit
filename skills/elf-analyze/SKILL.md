@@ -1,0 +1,44 @@
+# ELF Binary Analyzer
+
+Static triage of ELF binaries (Linux/BSD executables, shared objects, relocatable
+objects) with [pyelftools](https://github.com/eliben/pyelftools).
+
+## When to use
+
+You have a Linux binary or `.so` and want a fast read on what it is and whether it
+looks sketchy — without running it. Pairs with `hex-view` (bytes) and feeds an MCD
+reading (the `BINARY.*` atoms map onto capability/obfuscation lenses).
+
+## What it reports
+
+- **Header** — ELF32/64, endianness, machine/arch, type (EXEC/DYN/REL), entry point.
+- **Sections** — name, size, and **Shannon entropy** (a high-entropy section is a
+  packing/encryption tell) → `BINARY.HIGH_ENTROPY`.
+- **Dynamic** — needed libraries, and `RPATH`/`RUNPATH` (a `.so` search-path hijack
+  surface) → `BINARY.RPATH`.
+- **Imports** — undefined dynamic symbols, classified by capability
+  (network / exec / inject / load / crypto) → `BINARY.INTERESTING_IMPORT`.
+- **Hardening** — PIE, NX (executable stack → `BINARY.EXEC_STACK`), RELRO,
+  text relocations (`BINARY.TEXTREL`).
+
+It is strictly **static** — it parses structure via pyelftools and never loads,
+maps, or executes the binary. Safe on hostile files.
+
+## Usage
+
+```bash
+skillpack run elf-analyze ./suspicious.so
+skillpack run elf-analyze ./payload --format json
+```
+
+Non-ELF input fails honestly (`{"ok": false, "error": "not a valid ELF: …"}`).
+
+## Prerequisites
+
+- **python3 ≥ 3.8** — pyelftools is vendored under `runtime/site` (pure-python), so
+  there's no network/install at analysis time.
+
+## Rebuilding
+
+`runtime/site` is populated from the pinned `runtime/requirements.txt` by
+`scripts/build.sh` (`uv pip install --target`, build time only).
