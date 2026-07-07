@@ -167,7 +167,7 @@ def _extract_ar(path, outdir, budget, skipped) -> int:
                 name = f.read(nlen).split(b"\x00", 1)[0].decode("ascii", "replace")
                 off, length = data_start + nlen, size - nlen
             name = name.rstrip("/").strip()
-            if name in ("", "/", "//"):  # GNU symbol table / long-name table
+            if name in ("", "/", "//") or name.startswith("__.SYMDEF"):  # symbol/name tables
                 f.seek(next_header)
                 continue
             target = _safe_target(outdir, name)
