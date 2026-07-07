@@ -1,0 +1,9 @@
+{
+  "name": "js-deobfuscate-runtime",
+  "private": true,
+  "description": "Vendored production runtime for the js-deobfuscate skill (webcrack + its native isolated-vm prebuilds). Populated by ../scripts/build.sh; committed so the skill is offline.",
+  "type": "module",
+  "dependencies": {
+    "webcrack": "^2.16.0"
+  }
+}
