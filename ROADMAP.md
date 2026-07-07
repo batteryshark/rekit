@@ -14,18 +14,16 @@ useful next.
 | `js-covert-scan` | STEGO/OBF/EVADE atoms in JS/TS | pure stdlib | python3 |
 | `elf-analyze` | ELF triage → `BINARY.*` atoms | `uv pip --target` (pyelftools) | python3 |
 | `pe-analyze` | PE triage → `BINARY.*` atoms | `uv pip --target` (pefile) | python3 |
+| `macho-analyze` | Mach-O triage → `BINARY.*` atoms | `uv pip --target` (macholib) | python3 |
+| `dotnet-analyze` | .NET/CLR triage + P/Invoke → `DOTNET.*` atoms | `uv pip --target` (dnfile) | python3 |
+
+**PE/ELF/Mach-O/.NET static triage: complete.**
 
 ## Queued — binary analysis
 
-- **`macho-analyze`** — macOS Mach-O: arch/fat, file type, load commands, linked
-  dylibs, RPATH, code-signature + encryption (`LC_ENCRYPTION_INFO`) → `BINARY.*`
-  atoms. Lib: **macholib** (pure-python).
-- **`dotnet-analyze`** — .NET / CLR managed assemblies (a PE with a CLR header):
-  runtime version, referenced assemblies, **P/Invoke (`DllImport`) native-API
-  surface** (the real capability signal for .NET malware), types/methods, entry
-  point → `DOTNET.*`/`BINARY.*` atoms. Lib: **dnfile** (pure-python, static).
 - **`bin-triage`** — format-agnostic pure-stdlib: magic ID + Shannon entropy
   (packed/encrypted) + string extraction (ascii + utf-16le, surface URLs/IPs/APIs).
+  A fast first-look that routes to the format-specific analyzer.
 
 ## Queued — source analysis
 
