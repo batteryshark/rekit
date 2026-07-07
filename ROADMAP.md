@@ -19,12 +19,10 @@ useful next.
 | `bin-triage` | format ID + entropy + strings + embedded scan | pure stdlib | python3 |
 | `unpack` | recursive safe archive extraction | pure stdlib (+7z/unar CLI) | python3 |
 | `py-covert-scan` | STEGO/OBF/EVADE atoms in Python | pure stdlib | python3 |
+| `secrets-scan` | leaked credentials (redacted) → `SECRET.*` | pure stdlib | python3 |
 
-**PE/ELF/Mach-O/.NET static triage + `bin-triage` + `unpack` + JS/Py covert-scan: complete.**
-
-## Queued — source analysis
-
-- **`secrets-scan`** — API keys / tokens / private keys (high-signal regex + entropy).
+**Static analysis layer complete:** JS/Py covert-scan, PE/ELF/Mach-O/.NET triage,
+`bin-triage`, `unpack`, `secrets-scan`. 12 skills. All emit atoms / route cleanly.
 
 ## Queued — containers / carving / decompilers
 
