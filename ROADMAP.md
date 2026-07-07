@@ -26,8 +26,8 @@ useful next.
 
 ## Queued — containers / carving / decompilers
 
-- **`unpack` follow-ups** — v1 does zip/tar/gz/bz2/xz (whl/nupkg are zip) + 7z/RAR via
-  CLI. Still to add: **asar** (Electron, pure-python parse) and **ar/deb** extraction.
+- **`unpack` follow-ups** — done: zip/tar/gz/bz2/xz + 7z/RAR (CLI) + **asar** (Electron,
+  pure-python, base=8+u32@4, verified). Still to add: **ar/deb** extraction.
   (py7zr was rejected — native, python-ABI-locked deps; use the `7z` CLI instead.)
 - **`binwalk-carve`** — firmware / embedded-file carving & extraction (filesystems,
   bootloaders, nested archives) via **binwalk** (v3 is a Rust single-binary → its own
