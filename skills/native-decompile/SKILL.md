@@ -25,5 +25,5 @@ emulates the target.
 ## Usage
 
 ```bash
-skillpack run native-decompile ./suspicious.elf ./out
+rekit run native-decompile ./suspicious.elf ./out
 ```

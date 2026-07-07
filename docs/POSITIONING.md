@@ -8,7 +8,7 @@ Status: positioning draft (for discussion)
 reverse-engineering work** — deobfuscate, decompile, extract, triage, scan, carve, pull
 IOCs, and (later) run/observe. It is **not a runtime.** Orchestration — the loop, the
 ledger, goals, the human channel — is a *separate* concern owned by the agent/harness
-(or a dedicated runtime project), not by rekit. This toolset (built as "skillpacks") **is**
+(or a dedicated runtime project), not by rekit. This toolset (built as "rekit") **is**
 rekit. It splits into a **static tier** (today) and a **dynamic tier** (growth).
 `unmask`/MCD is a **completely separate project** and stays that way.
 
@@ -86,7 +86,7 @@ Stated plainly so it doesn't drift:
 
 ## 5. Open questions (for the discussion)
 
-1. **Do the rename now?** `skillpacks` → `rekit` (repo/dir), and the `skillpack` CLI →
+1. **Do the rename now?** `rekit` → `rekit` (repo/dir), and the `rekit` CLI →
    `rekit`. The `skill.json` contract stays; it just becomes *the* rekit contract.
 2. **The existing rekit runtime kernel** (`runner-lab/rekit`): rename it to a
    runtime-y name (and keep it as a separate, optional orchestrator), or park it?

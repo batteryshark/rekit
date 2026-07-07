@@ -23,9 +23,9 @@ droppers. **This is a starting point, not a corpus** — for real coverage point
 ## Usage
 
 ```bash
-skillpack run yara-scan ./package                       # starter rules over a tree
-skillpack run yara-scan ./sample.bin --rules ~/rules    # your own corpus
-skillpack run yara-scan ./x --format json
+rekit run yara-scan ./package                       # starter rules over a tree
+rekit run yara-scan ./sample.bin --rules ~/rules    # your own corpus
+rekit run yara-scan ./x --format json
 ```
 
 ## Prerequisites

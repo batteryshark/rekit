@@ -27,9 +27,9 @@ run the firmware.
 ## Usage
 
 ```bash
-skillpack run binwalk-carve ./firmware.bin ./out
+rekit run binwalk-carve ./firmware.bin ./out
 # then analyse the recovered tree, e.g.:
-skillpack run bin-triage ./out/<carved-file>
+rekit run bin-triage ./out/<carved-file>
 ```
 
 Run this **sandboxed** (no network, writable output dir only) — firmware extractors

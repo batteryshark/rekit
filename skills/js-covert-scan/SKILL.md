@@ -44,8 +44,8 @@ covert, targeted, conditional behavior — so the scan reports a co-occurrence
 ## Usage
 
 ```bash
-skillpack run js-covert-scan ./suspEcious.js
-skillpack run js-covert-scan ./some-package --format json
+rekit run js-covert-scan ./suspEcious.js
+rekit run js-covert-scan ./some-package --format json
 ```
 
 Text mode prints ranked atoms with location, codepoint (for STEGO), and the line.

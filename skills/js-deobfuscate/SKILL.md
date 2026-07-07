@@ -33,7 +33,7 @@ sandboxed: no network, writes only to the output dir, with a timeout.
 
 ```bash
 # via the dispatcher (checks that node is present first)
-skillpack run js-deobfuscate ./obfuscated.js ./out
+rekit run js-deobfuscate ./obfuscated.js ./out
 
 # or directly
 node skills/js-deobfuscate/bin/webcrack.mjs ./obfuscated.js ./out

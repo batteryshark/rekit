@@ -25,8 +25,8 @@ resolves, connects to, or validates any indicator.
 ## Usage
 
 ```bash
-skillpack run ioc-extract ./decompiled-src
-skillpack run ioc-extract ./sample.bin --format json
+rekit run ioc-extract ./decompiled-src
+rekit run ioc-extract ./sample.bin --format json
 ```
 
 ## Prerequisites

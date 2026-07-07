@@ -1,4 +1,4 @@
-# skillpacks
+# rekit
 
 A library of **self-contained analysis skills** that any agent (or tool) can call —
 built for reverse-engineering and malicious-code triage, but coupled to nothing.
@@ -14,12 +14,12 @@ as *not analysed*. Nothing is ever silently skipped.
 contract is generic: a skill is a directory + a manifest + a documented invocation.
 
 ```bash
-bin/skillpack list                    # what skills exist
-bin/skillpack doctor                  # which prerequisites are present  (X/Y ready)
-bin/skillpack caps                    # capability → skills index
-bin/skillpack install [--<id>]        # vendor skill runtimes (runs each build.sh)
-bin/skillpack run <id> <args...>      # run one (checks prereqs first)
-bin/skillpack info <id>               # manifest + SKILL.md
+bin/rekit list                    # what skills exist
+bin/rekit doctor                  # which prerequisites are present  (X/Y ready)
+bin/rekit caps                    # capability → skills index
+bin/rekit install [--<id>]        # vendor skill runtimes (runs each build.sh)
+bin/rekit run <id> <args...>      # run one (checks prereqs first)
+bin/rekit info <id>               # manifest + SKILL.md
 ```
 
 ## The skills (21)
@@ -70,9 +70,9 @@ bin/skillpack info <id>               # manifest + SKILL.md
 ## Getting started
 
 ```bash
-bin/skillpack install          # vendor runtimes for the skills that need it
-bin/skillpack doctor           # confirm what's ready; install BYO tools for the rest
-bin/skillpack run bin-triage ./unknown.bin
+bin/rekit install          # vendor runtimes for the skills that need it
+bin/rekit doctor           # confirm what's ready; install BYO tools for the rest
+bin/rekit run bin-triage ./unknown.bin
 ```
 
 ## Design rules

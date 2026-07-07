@@ -36,8 +36,8 @@ dropper; the scan reports a co-occurrence `assessment` across families.
 ## Usage
 
 ```bash
-skillpack run py-covert-scan ./setup.py
-skillpack run py-covert-scan ./package --format json
+rekit run py-covert-scan ./setup.py
+rekit run py-covert-scan ./package --format json
 ```
 
 JSON: `{filesScanned, findingCount, summary, families, assessment, findings:[{atom,

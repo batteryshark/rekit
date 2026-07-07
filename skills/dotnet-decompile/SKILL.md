@@ -22,5 +22,5 @@ assembly) and reports the files written.
 ## Usage
 
 ```bash
-skillpack run dotnet-decompile ./managed.dll ./out
+rekit run dotnet-decompile ./managed.dll ./out
 ```

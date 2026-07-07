@@ -10,7 +10,7 @@ skills/<id>/
   scripts/       runner + build scripts (wrapper.mjs, build.sh, run.py, ...)
 ```
 
-The dispatcher (`bin/skillpack`) discovers skills by scanning `skills/*/skill.json`.
+The dispatcher (`bin/rekit`) discovers skills by scanning `skills/*/skill.json`.
 Nothing else is registered anywhere — dropping a folder in is registration.
 
 ## `skill.json`
@@ -79,7 +79,7 @@ Agent-agnostic, three equivalent ways:
 
 ```bash
 # via dispatcher (checks prereqs first, then runs)
-bin/skillpack run <id> <arg1> <arg2> ...
+bin/rekit run <id> <arg1> <arg2> ...
 
 # direct (a caller that already knows the entry)
 node skills/<id>/bin/<payload> <arg1> <arg2> ...
@@ -101,5 +101,5 @@ skill is offline and reproducible; re-run `build.sh` to refresh + re-pin.
 
 1. `mkdir skills/<id>` with `skill.json` + `SKILL.md`.
 2. Put the payload in `bin/` (and a `scripts/build.sh` that reproduces it).
-3. `bin/skillpack doctor <id>` to confirm prereq detection.
+3. `bin/rekit doctor <id>` to confirm prereq detection.
 4. Done — discovery is automatic.

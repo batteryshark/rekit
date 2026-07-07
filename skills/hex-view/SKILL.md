@@ -20,10 +20,10 @@ executes the input — safe on hostile binaries.
 ## Usage
 
 ```bash
-skillpack run hex-view ./suspicious.bin                       # first 256 bytes
-skillpack run hex-view ./suspicious.bin --offset 512 --length 128
-skillpack run hex-view ./suspicious.bin --length 0            # whole file (capped 1 MiB)
-skillpack run hex-view ./suspicious.bin --format json         # structured rows for tooling
+rekit run hex-view ./suspicious.bin                       # first 256 bytes
+rekit run hex-view ./suspicious.bin --offset 512 --length 128
+rekit run hex-view ./suspicious.bin --length 0            # whole file (capped 1 MiB)
+rekit run hex-view ./suspicious.bin --format json         # structured rows for tooling
 ```
 
 Text mode (the view is the output):

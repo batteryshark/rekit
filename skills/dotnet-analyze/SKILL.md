@@ -32,8 +32,8 @@ into a CLR, JITs, or executes it. Safe on hostile files.
 ## Usage
 
 ```bash
-skillpack run dotnet-analyze ./payload.exe
-skillpack run dotnet-analyze ./managed.dll --format json
+rekit run dotnet-analyze ./payload.exe
+rekit run dotnet-analyze ./managed.dll --format json
 ```
 
 Native PE → `{"ok": true, "isDotNet": false, "note": "… use pe-analyze"}`.
