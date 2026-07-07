@@ -26,10 +26,13 @@ useful next.
 | `dotnet-decompile` | .NET IL → C# | ilspycmd (BYO) |
 | `native-decompile` | ELF/PE/Mach-O → C (rizin `pdg`) | rizin (BYO) |
 | `binwalk-carve` | firmware / embedded-file extraction | binwalk (BYO) |
+| `ghidra-decompile` | full Ghidra headless decompile (hard targets) | analyzeHeadless (BYO) |
+| `yara-scan` | YARA signature scan + starter rule pack | yara (BYO) |
 
-**18 skills.** Static analysis + extraction (`unpack` incl. asar + ar/deb,
-`pyinstaller-extract`, `binwalk-carve`) + prereq-gated decompilers (jvm/dotnet/native —
-honest degradation) + **packaging** (`skillpack install`/`caps`, doctor summary, README).
+**20 skills.** Static analysis + extraction + decompilers (`native-decompile` = rizin's
+built-in Ghidra decompiler; `ghidra-decompile` = full Ghidra headless) + `yara-scan`
+signatures + **packaging**. 6 are BYO-tool (jadx/ilspycmd/rizin/binwalk/ghidra/yara) →
+honest prereq-gated degradation; 14 run out of the box.
 **Chains verified end-to-end:** Electron (unpack→asar→js-deobfuscate/sourcemap→
 js-covert-scan) and Python (pyinstaller-extract→pyc-decompile→py-covert-scan).
 

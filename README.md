@@ -22,7 +22,7 @@ bin/skillpack run <id> <args...>      # run one (checks prereqs first)
 bin/skillpack info <id>               # manifest + SKILL.md
 ```
 
-## The skills (18)
+## The skills (20)
 
 **Source detection** (pure stdlib, read-only, emit atoms)
 | Skill | What | Prereq |
@@ -30,6 +30,7 @@ bin/skillpack info <id>               # manifest + SKILL.md
 | `js-covert-scan` | STEGO/OBF/EVADE tactics in JS/TS (Unicode stego, XOR hiding, env-evasion) | python3 |
 | `py-covert-scan` | STEGO/OBF/EVADE in Python (decode-then-exec, marshal/pickle, sandbox/anti-debug) | python3 |
 | `secrets-scan` | leaked API keys / tokens / private keys (redacted) | python3 |
+| `yara-scan` | YARA signature scan (+ starter rule pack) | yara (BYO) |
 
 **Binary triage** (emit `BINARY.*`/`DOTNET.*` atoms)
 | Skill | What | Prereq |
@@ -49,7 +50,8 @@ bin/skillpack info <id>               # manifest + SKILL.md
 | `pyc-decompile` | `.pyc` → source (decompyle3, 3.7–3.8) | python3 |
 | `jvm-decompile` | `.apk`/`.dex`/`.jar`/`.class` → Java (jadx) | jadx (BYO) |
 | `dotnet-decompile` | .NET IL → C# (ilspycmd) | ilspycmd (BYO) |
-| `native-decompile` | ELF/PE/Mach-O → C (rizin `pdg`) | rizin (BYO) |
+| `native-decompile` | ELF/PE/Mach-O → C (rizin `pdg`, no JVM) | rizin (BYO) |
+| `ghidra-decompile` | ELF/PE/Mach-O → C (full Ghidra headless) | analyzeHeadless (BYO) |
 
 **Extract**
 | Skill | What | Prereq |
