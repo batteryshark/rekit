@@ -80,6 +80,8 @@ def detect(path: str) -> str:
             continue
         if head.startswith(sig):
             return fmt
+    if head.startswith(b"!<arch>\n"):
+        return "ar"
     # asar (Electron): starts with uint32 LE == 4, then a Pickle'd JSON header.
     if head[0:4] == b"\x04\x00\x00\x00" and _asar_ok(path):
         return "asar"
@@ -135,6 +137,51 @@ def _extract_asar(path, outdir, budget, skipped) -> int:
                 with open(target, "wb") as out:
                     out.write(chunk)
                 n += 1
+    return n
+
+
+def _extract_ar(path, outdir, budget, skipped) -> int:
+    """Unix ar / Debian .deb (a .deb is an ar of debian-binary + control/data tarballs;
+    the tarballs are picked up by the recursive walk)."""
+    n = 0
+    with open(path, "rb") as f:
+        if f.read(8) != b"!<arch>\n":
+            return 0
+        while True:
+            hdr = f.read(60)
+            if len(hdr) < 60 or hdr[58:60] != b"\x60\x0a":
+                break
+            raw_name = hdr[0:16].decode("ascii", "replace").rstrip()
+            try:
+                size = int(hdr[48:58].decode("ascii", "replace").strip())
+            except ValueError:
+                break
+            data_start = f.tell()
+            next_header = data_start + size + (size & 1)
+            name, off, length = raw_name, data_start, size
+            if raw_name.startswith("#1/"):  # BSD extended name: name inlined in the data
+                try:
+                    nlen = int(raw_name[3:])
+                except ValueError:
+                    nlen = 0
+                name = f.read(nlen).split(b"\x00", 1)[0].decode("ascii", "replace")
+                off, length = data_start + nlen, size - nlen
+            name = name.rstrip("/").strip()
+            if name in ("", "/", "//"):  # GNU symbol table / long-name table
+                f.seek(next_header)
+                continue
+            target = _safe_target(outdir, name)
+            if target is None or length > _PER_FILE or not budget.take(max(length, 0)):
+                skipped.append({"member": name or "?", "reason": "path-traversal / too-large / budget"})
+                f.seek(next_header)
+                continue
+            f.seek(off)
+            data = f.read(length)
+            os.makedirs(os.path.dirname(target) or outdir, exist_ok=True)
+            with open(target, "wb") as out:
+                out.write(data)
+            n += 1
+            f.seek(next_header)
     return n
 
 
@@ -260,6 +307,8 @@ def extract_one(path, outdir, budget, skipped, tools_missing) -> tuple[int, str]
         return _extract_stream(path, outdir, fmt, budget, skipped), fmt
     if fmt == "asar":
         return _extract_asar(path, outdir, budget, skipped), fmt
+    if fmt == "ar":
+        return _extract_ar(path, outdir, budget, skipped), fmt
     if fmt in ("7z", "rar"):
         return _extract_cli(path, outdir, fmt, tools_missing), fmt
     return 0, "unknown"
@@ -297,7 +346,7 @@ def run(archive: str, outdir: str, max_depth: int, max_bytes: int) -> dict:
         for fp in _walk_files(dest):
             if fp == apath:
                 continue
-            if detect(fp) in ("zip", "tar", "gz", "bz2", "xz", "7z", "rar", "asar"):
+            if detect(fp) in ("zip", "tar", "gz", "bz2", "xz", "7z", "rar", "asar", "ar"):
                 sub = fp + ".unpacked"
                 work.append((fp, sub, depth + 1))
 
