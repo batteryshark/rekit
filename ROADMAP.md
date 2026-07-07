@@ -16,14 +16,9 @@ useful next.
 | `pe-analyze` | PE triage → `BINARY.*` atoms | `uv pip --target` (pefile) | python3 |
 | `macho-analyze` | Mach-O triage → `BINARY.*` atoms | `uv pip --target` (macholib) | python3 |
 | `dotnet-analyze` | .NET/CLR triage + P/Invoke → `DOTNET.*` atoms | `uv pip --target` (dnfile) | python3 |
+| `bin-triage` | format ID + entropy + strings + embedded scan | pure stdlib | python3 |
 
-**PE/ELF/Mach-O/.NET static triage: complete.**
-
-## Queued — binary analysis
-
-- **`bin-triage`** — format-agnostic pure-stdlib: magic ID + Shannon entropy
-  (packed/encrypted) + string extraction (ascii + utf-16le, surface URLs/IPs/APIs).
-  A fast first-look that routes to the format-specific analyzer.
+**PE/ELF/Mach-O/.NET static triage + format-agnostic `bin-triage`: complete.**
 
 ## Queued — source analysis
 
@@ -31,9 +26,15 @@ useful next.
   base64/hex-decode-then-exec, `os.environ`/timezone evasion, Unicode stego → atoms.
 - **`secrets-scan`** — API keys / tokens / private keys (high-signal regex + entropy).
 
-## Queued — containers / decompilers (prereq-gated, exercise honest degradation)
+## Queued — containers / carving / decompilers
 
-- **`unpack`** — zip/tar/asar/whl/nupkg recursive extraction to a fixpoint.
+- **`unpack`** — recursive archive extraction to a fixpoint. stdlib zip/tar/gz/bz2/xz
+  core **+ py7zr (7z, pure-python) + asar/whl/nupkg/deb**; RAR/CAB via optional
+  `unar`/`7z` on PATH (honest degradation when absent). Feeds the analyzers/decompilers.
+- **`binwalk-carve`** — firmware / embedded-file carving & extraction (filesystems,
+  bootloaders, nested archives) via **binwalk** (v3 is a Rust single-binary → its own
+  prereq). The heavy sibling of `bin-triage`'s embedded-signature scan; still widely
+  used for IoT/firmware.
 - **`pyinstaller-extract`** — carve `.pyc` out of PyInstaller bundles (feeds `pyc-decompile`).
 - **`jvm-decompile`** — jadx / CFR (→ `java`).
 - **`dotnet-decompile`** — ilspycmd (→ `dotnet`).
