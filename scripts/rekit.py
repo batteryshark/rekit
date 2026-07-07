@@ -101,7 +101,8 @@ def cmd_list(args) -> int:
         return 0
     for s in skills:
         caps = ", ".join(s.get("capabilities", []))
-        print(f"{s.get('id', '?'):18} {s.get('description', s.get('_error', ''))}")
+        is_dyn = (s.get("safety") or {}).get("executes_input") == "full"
+        print(f"{s.get('id', '?'):18} {'⚡ ' if is_dyn else ''}{s.get('description', s.get('_error', ''))}")
         if caps:
             print(f"{'':18} capabilities: {caps}")
     return 0
@@ -154,6 +155,21 @@ def cmd_run(args) -> int:
         print(json.dumps({"ok": False, "error": "prerequisites missing",
                           "missing": [p["tool"] for p in missing]}))
         return 3
+    # Dynamic-tier consent gate: a skill that EXECUTES the target requires explicit
+    # opt-in. Isolation is a separate, optional axis — native is fine on a box you don't
+    # mind risking; bind an isolation provider when you want one. Consent, not a gate.
+    executes = (s.get("safety") or {}).get("executes_input", "no")
+    if executes == "full" and not getattr(args, "allow_dynamic", False):
+        print(f"rekit: '{s['id']}' is a DYNAMIC skill — it EXECUTES the target, not just "
+              f"reads it.\n       Re-run with --allow-dynamic to consent. Run dynamic skills "
+              f"only where you don't mind the risk (a disposable VM or a dedicated analysis "
+              f"box), or bind an isolation provider.", file=sys.stderr)
+        print(json.dumps({"ok": False, "error": "dynamic skill requires consent",
+                          "executesInput": executes, "hint": "re-run with --allow-dynamic"}))
+        return 4
+    if executes == "full":
+        print(f"rekit: ⚡ DYNAMIC — executing target via '{s['id']}'.", file=sys.stderr)
+
     entry = s.get("entry", {})
     command = list(entry.get("command", []))
     if not command:
@@ -169,8 +185,10 @@ def cmd_run(args) -> int:
     # passes resolve correctly. The entry command's own script path is absolutised
     # above, and each skill's runner locates its vendored deps relative to its own
     # file, so cwd doesn't matter for the skill's internals.
+    # Pass consent through to a dynamic runner (so it doesn't double-gate).
+    env = {**os.environ, "REKIT_ALLOW_DYNAMIC": "1"} if executes == "full" else None
     try:
-        proc = subprocess.run(argv)
+        proc = subprocess.run(argv, env=env)
     except FileNotFoundError as exc:
         sys.exit(f"rekit: cannot run '{s['id']}': {exc}")
     return proc.returncode
@@ -228,6 +246,8 @@ def build_parser() -> argparse.ArgumentParser:
     info.set_defaults(func=cmd_info)
 
     run = sub.add_parser("run", help="run a skill (checks prereqs first)")
+    run.add_argument("--allow-dynamic", action="store_true",
+                     help="consent to run a DYNAMIC skill (one that EXECUTES the target)")
     run.add_argument("id")
     run.add_argument("rest", nargs=argparse.REMAINDER,
                      help="arguments passed through to the skill")

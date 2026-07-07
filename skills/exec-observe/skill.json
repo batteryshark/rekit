@@ -1,0 +1,34 @@
+{
+  "id": "exec-observe",
+  "name": "Execute & Observe (dynamic)",
+  "version": "0.1.0",
+  "description": "DYNAMIC: run a target in a fresh working directory with a timeout and capture its behavior — exit code, stdout/stderr, wall-clock time, and files it creates. The seed of the dynamic tier (richer skills add syscall/network tracing). EXECUTES the target — run only where you don't mind the risk.",
+  "capabilities": ["execute-target", "observe-behavior", "dynamic-analysis"],
+  "prerequisites": [
+    {"tool": "python3", "min_version": "3.8", "check": ["python3", "--version"],
+     "install_hint": "Install Python 3.8+ — pure stdlib, no other dependency."}
+  ],
+  "safety": {
+    "executes_input": "full",
+    "network": "target-controlled",
+    "tier": 3,
+    "notes": "DYNAMIC — this RUNS the target, which can do anything the host allows (including network). Isolation is the operator's choice: run in a disposable VM or a dedicated analysis box, or bind an isolation provider. rekit's dispatcher gates this behind --allow-dynamic (consent, not a sandbox requirement); the runner also refuses direct calls without --yes-i-consent / REKIT_ALLOW_DYNAMIC=1. It does bound the run with a working-dir + timeout, but does NOT sandbox the target."
+  },
+  "entry": {
+    "command": ["python3", "runtime/run.py"],
+    "args": [
+      {"name": "target",     "type": "file", "required": true,  "desc": "executable/script to run and observe"},
+      {"name": "--timeout",  "type": "int",  "required": false, "desc": "seconds before kill (default 30)"},
+      {"name": "--format",   "type": "enum", "required": false, "desc": "text | json (default text)"}
+    ],
+    "result": {"channel": "stdout", "format": "text|json",
+               "fields": {"ok": "bool", "exitCode": "int|null", "timedOut": "bool", "durationSec": "number", "filesCreated": "array", "stdout": "string", "stderr": "string", "workdir": "string"}}
+  },
+  "payload": {
+    "tool": "(builtin)",
+    "vendored": null,
+    "runner": "runtime/run.py",
+    "pure_stdlib": true,
+    "note": "First DYNAMIC-tier skill (safety.executes_input=full). Establishes the consent pattern: the dispatcher requires --allow-dynamic; the runner double-checks. Isolation is a separate optional axis — native execution is a first-class mode for RE on a don't-care box. Next dynamic skills: strace/dtruss trace, Frida hooking, network capture, Unicorn emulation."
+  }
+}

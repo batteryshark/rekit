@@ -84,13 +84,23 @@ Stated plainly so it doesn't drift:
   explicit opt-in, reach for a rekit tool someday — but there is no architectural
   coupling, and rekit is not "for" unmask.
 
-## 5. Open questions (for the discussion)
+## 5. Status & decisions
 
-1. **Do the rename now?** `rekit` → `rekit` (repo/dir), and the `rekit` CLI →
-   `rekit`. The `skill.json` contract stays; it just becomes *the* rekit contract.
-2. **The existing rekit runtime kernel** (`runner-lab/rekit`): rename it to a
-   runtime-y name (and keep it as a separate, optional orchestrator), or park it?
-3. **Dynamic-tier consent UX** — per-run `--allow-dynamic`, per-skill acknowledgment, or
-   an environment assertion ("I'm in a disposable VM")?
-4. **First isolation provider** for the *optional* automated path — plain container, a VM
-   driver, OpenShell, or Frida-on-host?
+- **Rename — DONE.** `skillpacks` → `rekit` (dir + `rekit` CLI); the old runtime kernel
+  → **`rekit-factory`**. The `skill.json` contract is now *the* rekit contract.
+- **Dynamic-tier consent — DONE.** A skill with `safety.executes_input: full` is gated:
+  `rekit run --allow-dynamic <skill>` (the dispatcher passes consent to the runner via
+  `REKIT_ALLOW_DYNAMIC=1`; runners also refuse direct calls without it). `rekit list`
+  marks dynamic skills with ⚡. First dynamic skill: **`exec-observe`** (run the target;
+  capture exit / stdout / stderr / files-created / timing).
+- **Isolation — optional axis; native is first-class.** RE often runs on a box you don't
+  mind risking, so *no isolation* is a legitimate default. Providers (a VM driver, a
+  container, **OpenShell**, Frida-on-host) are opt-in, for when you want automated
+  isolation. None is required and none is wired yet — OpenShell is the leading candidate
+  but undecided.
+- **Boundary holds:** `unmask`/MCD stays a completely separate project.
+
+### Still open
+- Which isolation provider to wire first (if any) — deferred until there's a concrete need.
+- Deeper `rekit-factory` cleanup (its internal Python package is still named `rekit`).
+- Next dynamic skills: `strace`/`dtruss` trace, Frida hooking, network capture, Unicorn.
