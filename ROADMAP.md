@@ -29,19 +29,24 @@ useful next.
 | `ghidra-decompile` | full Ghidra headless decompile (hard targets) | analyzeHeadless (BYO) |
 | `yara-scan` | YARA signature scan + starter rule pack | yara (BYO) |
 | `ioc-extract` | defanged IOCs (urls/ips/hashes/…) from any file | pure stdlib · python3 |
+| `exec-observe` ⚡ | DYNAMIC: run target, capture exit/stdout/stderr/files | pure stdlib · python3 |
 
-**21 skills.** Source detection + binary triage + extraction + decompilers
+**22 skills** = 21 **static** (read-only, run anywhere) + 1 **dynamic**
+(`exec-observe`). Source detection + binary triage + extraction + decompilers
 (`native-decompile` = rizin's Ghidra decompiler, no JVM; `ghidra-decompile` = full
-Ghidra headless) + `yara-scan` signatures + `ioc-extract` reporting + **packaging**.
-**15 run out of the box**; 6 BYO-tool (jadx/ilspycmd/rizin/binwalk/ghidra/yara) degrade
+Ghidra headless) + `yara-scan` signatures + `ioc-extract` reporting + **packaging** +
+**dynamic tier** (consent-gated `rekit run --allow-dynamic`, ⚡ in `list`; isolation an
+optional axis, native first-class).
+**16 run out of the box**; 6 BYO-tool (jadx/ilspycmd/rizin/binwalk/ghidra/yara) degrade
 honestly.
 **Chains verified end-to-end:** Electron (unpack→asar→js-deobfuscate/sourcemap→
 js-covert-scan) and Python (pyinstaller-extract→pyc-decompile→py-covert-scan).
 
 ## Queued — remaining
 
-Nothing queued — the toolset is feature-complete for now (18 skills). New skills just
-drop into `skills/<id>/` following `SKILL-CONTRACT.md`.
+Static tier is feature-complete (21). Dynamic tier just seeded (`exec-observe`); next
+dynamic skills: `strace`/`dtruss` behavioral trace, Frida hooking, network capture,
+Unicorn emulation. New skills drop into `skills/<id>/` per `SKILL-CONTRACT.md`.
 
 ## Later
 
