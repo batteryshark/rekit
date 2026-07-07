@@ -162,8 +162,12 @@ def cmd_run(args) -> int:
         p = skill_dir / part
         resolved.append(str(p) if (i > 0 and p.exists()) else part)
     argv = resolved + list(args.rest)
+    # Run in the caller's cwd (NOT the skill dir) so relative input paths the user
+    # passes resolve correctly. The entry command's own script path is absolutised
+    # above, and each skill's runner locates its vendored deps relative to its own
+    # file, so cwd doesn't matter for the skill's internals.
     try:
-        proc = subprocess.run(argv, cwd=str(skill_dir))
+        proc = subprocess.run(argv)
     except FileNotFoundError as exc:
         sys.exit(f"skillpack: cannot run '{s['id']}': {exc}")
     return proc.returncode
