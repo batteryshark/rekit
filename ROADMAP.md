@@ -30,21 +30,31 @@ useful next.
 | `yara-scan` | YARA signature scan + starter rule pack | yara (BYO) |
 | `ioc-extract` | defanged IOCs (urls/ips/hashes/…) from any file | pure stdlib · python3 |
 | `exec-observe` ⚡ | DYNAMIC: run target, capture exit/stdout/stderr/files | pure stdlib · python3 |
-| `emulate-code` | contained: run raw shellcode/blob on a virtual CPU | `uv pip --target` (unicorn) · python3 |
+| `emulate-code` | contained: run raw shellcode/blob on a virtual CPU (no OS) | `uv pip --target` (unicorn) · python3 |
+| `qiling-emulate` | contained: emulate a FULL binary (PE/ELF/Mach-O) w/ emulated OS syscalls | `uv pip --target` (qiling) + BYO rootfs · python3 |
 | `syscall-trace` ⚡ | DYNAMIC: kernel-syscall trace (strace/dtruss) → histogram + files/net/exec | strace/dtruss (BYO) · python3 |
 | `net-capture` ⚡ | DYNAMIC: run target + sniff wire (tcpdump) → talkers/DNS + pcap | tcpdump (BYO, root) · python3 |
 | `frida-trace` ⚡ | DYNAMIC: Frida-hook network/exec/file/crypto API calls | frida-trace (BYO) · python3 |
 
-**26 skills** = 21 **static** (read-only, run anywhere) + 1 **contained**
-(`emulate-code`, Unicorn — bytes run on an emulated CPU, not the host; `executes_input:
-sandboxed`, *not* consent-gated) + 4 **dynamic** (`exec-observe`, `syscall-trace`,
-`net-capture`, `frida-trace` — execute the target natively, consent-gated). Source
-detection + binary triage + extraction + decompilers (`native-decompile` = rizin's
-Ghidra decompiler, no JVM; `ghidra-decompile` = full Ghidra headless) + `yara-scan`
-signatures + `ioc-extract` reporting + **packaging** + **dynamic tier** (consent-gated
-`rekit run --allow-dynamic`, ⚡ in `list`; isolation an optional axis, native
-first-class).
-**19 run out of the box**; BYO-tool skills (jadx/ilspycmd/rizin/binwalk/ghidra/yara +
+**27 skills** = 21 **static** (read-only, run anywhere) + 2 **contained**
+(`emulate-code` = Unicorn raw bytes/no OS; `qiling-emulate` = Qiling full binary with
+emulated OS syscalls against a BYO rootfs — both `executes_input: sandboxed`, run on an
+emulated CPU not the host, *not* consent-gated) + 4 **dynamic** (`exec-observe`,
+`syscall-trace`, `net-capture`, `frida-trace` — execute the target natively,
+consent-gated). Source detection + binary triage + extraction + decompilers
+(`native-decompile` = rizin's Ghidra decompiler, no JVM; `ghidra-decompile` = full
+Ghidra headless) + `yara-scan` signatures + `ioc-extract` reporting + **packaging** +
+**dynamic tier** (consent-gated `rekit run --allow-dynamic`, ⚡ in `list`; isolation an
+optional axis, native first-class).
+
+The **emulation/execution family** is a three-rung ladder: `emulate-code` (no OS) →
+`qiling-emulate` (emulated OS, contained, cross-arch/cross-OS) → `exec-observe`/tracers
+(native host execution, consent-gated).
+
+Dispatcher commands: `list · search · doctor · info · run · install · caps`.
+**`rekit search <query>`** (keyword/capability, `--dynamic|--static|--tier|--capability`,
+`--json`) is the find-a-skill entry point as the roster grows toward hundreds.
+**20 run out of the box**; BYO-tool skills (jadx/ilspycmd/rizin/binwalk/ghidra/yara +
 tracers strace-or-dtruss/tcpdump/frida-trace) degrade honestly via the prereq gate.
 **Chains verified end-to-end:** Electron (unpack→asar→js-deobfuscate/sourcemap→
 js-covert-scan) and Python (pyinstaller-extract→pyc-decompile→py-covert-scan).

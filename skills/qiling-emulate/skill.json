@@ -1,0 +1,36 @@
+{
+  "id": "qiling-emulate",
+  "name": "Binary Emulator (Qiling)",
+  "version": "0.1.0",
+  "description": "Emulate a FULL binary (PE/ELF/Mach-O/…) with the Qiling framework: loads the program and emulates the OS/syscalls against a BYO rootfs, so a Linux ELF or Windows PE can be detonated on this host cross-arch/cross-OS WITHOUT native execution or a VM. Contained: syscalls hit Qiling's emulation, not the host kernel. Complements emulate-code (raw shellcode, no OS) and exec-observe (native run).",
+  "capabilities": ["emulate-binary", "emulate", "dynamic-analysis", "behavioral-trace"],
+  "prerequisites": [
+    {"tool": "python3", "min_version": "3.8", "check": ["python3", "--version"],
+     "install_hint": "Install Python 3.8+. Qiling is vendored under runtime/site (run `rekit install qiling-emulate`)."}
+  ],
+  "safety": {
+    "executes_input": "sandboxed",
+    "network": "emulated",
+    "tier": 2,
+    "notes": "Dynamic analysis, but CONTAINED — the binary runs on Qiling's emulated CPU (Unicorn) and its syscalls are implemented by Qiling against the rootfs, not passed to the host kernel. File/network effects are emulated by default. Because it's contained it is NOT behind the --allow-dynamic gate (like emulate-code). NOTE: Qiling CAN be configured for syscall/network passthrough — that widens the blast radius and is the operator's explicit choice, not the default here. Wall-clock-timeout bounded via emu_stop."
+  },
+  "entry": {
+    "command": ["python3", "runtime/run.py"],
+    "args": [
+      {"name": "target",    "type": "file", "required": true,  "desc": "binary to emulate (PE/ELF/Mach-O/shellcode)"},
+      {"name": "--rootfs",  "type": "dir",  "required": true,  "desc": "OS rootfs Qiling emulates against (BYO; must match target OS/arch)"},
+      {"name": "--args",    "type": "str",  "required": false, "desc": "argv passed to the emulated program"},
+      {"name": "--timeout", "type": "int",  "required": false, "desc": "wall-clock seconds before emu_stop (default 30)"},
+      {"name": "--format",  "type": "enum", "required": false, "desc": "text | json (default text)"}
+    ],
+    "result": {"channel": "stdout", "format": "text|json",
+               "fields": {"ok": "bool", "tool": "string", "outcome": "string", "arch": "string|null", "syscalls": "object", "logTail": "string", "error": "string?"}}
+  },
+  "payload": {
+    "tool": "qiling",
+    "source": "https://qiling.io",
+    "vendored": "runtime/site",
+    "runner": "runtime/run.py",
+    "note": "BYO rootfs (github.com/qilingframework/rootfs) — matching the target's OS/arch backs the emulation. Qiling is heavier than Unicorn (pulls unicorn/capstone/keystone/pefile/…); vendored via `uv pip install --target`. The mid-tier between emulate-code (no OS) and exec-observe (native): full-binary behavior, contained, cross-platform."
+  }
+}
