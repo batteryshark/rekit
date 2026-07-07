@@ -1,0 +1,36 @@
+{
+  "id": "dotnet-decompile",
+  "name": ".NET Decompiler",
+  "version": "0.1.0",
+  "description": "Decompile a .NET / CLR assembly (IL) back to C# with the ilspycmd dotnet tool. Static: reads metadata + IL, never runs the assembly. Prereq-gated on ilspycmd (needs the .NET runtime); honest blind spot with an install hint when absent. Pair with dotnet-analyze for the P/Invoke surface.",
+  "capabilities": ["decompile-dotnet", "decompile-il-to-csharp"],
+  "prerequisites": [
+    {"tool": "python3", "min_version": "3.8", "check": ["python3", "--version"],
+     "install_hint": "Install Python 3.8+ for the runner."},
+    {"tool": "ilspycmd", "check": ["ilspycmd", "--version"],
+     "install_hint": "dotnet tool install -g ilspycmd  (needs the .NET SDK/runtime)"}
+  ],
+  "safety": {
+    "executes_input": "no",
+    "network": "none",
+    "tier": 1,
+    "notes": "Trusted decompiler (ilspycmd) over an untrusted assembly. Reads IL/metadata and emits C#; never loads the assembly into a CLR or runs it. Timeout-bounded."
+  },
+  "entry": {
+    "command": ["python3", "runtime/run.py"],
+    "args": [
+      {"name": "input",    "type": "file", "required": true,  "desc": ".NET assembly (.dll/.exe)"},
+      {"name": "outdir",   "type": "dir",  "required": true,  "desc": "output dir for decompiled C#"},
+      {"name": "--format", "type": "enum", "required": false, "desc": "text | json (default text)"}
+    ],
+    "result": {"channel": "stdout", "format": "text|json",
+               "fields": {"ok": "bool", "tool": "string", "outputDir": "string", "filesWritten": "int", "exitCode": "int"}}
+  },
+  "payload": {
+    "tool": "ilspycmd",
+    "source": "https://github.com/icsharpcode/ILSpy",
+    "vendored": null,
+    "runner": "runtime/run.py",
+    "note": "BYO tool on PATH (needs the .NET runtime, not bundled). The runner invokes ilspycmd; the dispatcher prereq gate gives honest degradation. Complements dotnet-analyze (static triage → this for full C#)."
+  }
+}
