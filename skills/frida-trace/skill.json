@@ -1,0 +1,37 @@
+{
+  "id": "frida-trace",
+  "name": "Frida API Tracer",
+  "version": "0.1.0",
+  "description": "DYNAMIC: spawn a target under Frida and trace a curated set of network/exec/file/crypto API calls (dynamic instrumentation, no debugger). Logs the calls the sample makes. EXECUTES the target; consent-gated. BYO frida-trace (pip install frida-tools).",
+  "capabilities": ["instrument-target", "api-trace", "dynamic-analysis"],
+  "prerequisites": [
+    {"tool": "python3", "min_version": "3.8", "check": ["python3", "--version"],
+     "install_hint": "Install Python 3.8+ for the runner."},
+    {"tool": "frida-trace", "check": ["frida-trace", "--version"],
+     "install_hint": "pip install frida-tools (pulls the frida native core; may need matching device/host frida-server for remote targets)."}
+  ],
+  "safety": {
+    "executes_input": "full",
+    "network": "target-controlled",
+    "tier": 3,
+    "notes": "DYNAMIC — Frida spawns and runs the target natively while hooking it. Consent-gated (--allow-dynamic; runner checks REKIT_ALLOW_DYNAMIC=1/--yes-i-consent). Timeout-bounded. Run in a disposable VM / analysis box; isolation is the operator's choice."
+  },
+  "entry": {
+    "command": ["python3", "runtime/run.py"],
+    "args": [
+      {"name": "target",     "type": "file", "required": true,  "desc": "executable to spawn + trace"},
+      {"name": "--patterns", "type": "str",  "required": false, "desc": "comma-separated function globs (default: network/exec/file/crypto)"},
+      {"name": "--timeout",  "type": "int",  "required": false, "desc": "seconds before stop (default 20)"},
+      {"name": "--format",   "type": "enum", "required": false, "desc": "text | json (default text)"}
+    ],
+    "result": {"channel": "stdout", "format": "text|json",
+               "fields": {"ok": "bool", "tool": "string", "hookedCalls": "object", "totalCalls": "int", "raw": "string"}}
+  },
+  "payload": {
+    "tool": "frida-trace",
+    "source": "https://frida.re",
+    "vendored": null,
+    "runner": "runtime/run.py",
+    "note": "BYO frida-tools on PATH. Complements syscall-trace (kernel view) with an API/library view; great for seeing which library calls a sample makes even when statically obfuscated. Default hooks are curated globs; override with --patterns."
+  }
+}

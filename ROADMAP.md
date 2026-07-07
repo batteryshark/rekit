@@ -30,23 +30,34 @@ useful next.
 | `yara-scan` | YARA signature scan + starter rule pack | yara (BYO) |
 | `ioc-extract` | defanged IOCs (urls/ips/hashes/…) from any file | pure stdlib · python3 |
 | `exec-observe` ⚡ | DYNAMIC: run target, capture exit/stdout/stderr/files | pure stdlib · python3 |
+| `emulate-code` | contained: run raw shellcode/blob on a virtual CPU | `uv pip --target` (unicorn) · python3 |
+| `syscall-trace` ⚡ | DYNAMIC: kernel-syscall trace (strace/dtruss) → histogram + files/net/exec | strace/dtruss (BYO) · python3 |
+| `net-capture` ⚡ | DYNAMIC: run target + sniff wire (tcpdump) → talkers/DNS + pcap | tcpdump (BYO, root) · python3 |
+| `frida-trace` ⚡ | DYNAMIC: Frida-hook network/exec/file/crypto API calls | frida-trace (BYO) · python3 |
 
-**22 skills** = 21 **static** (read-only, run anywhere) + 1 **dynamic**
-(`exec-observe`). Source detection + binary triage + extraction + decompilers
-(`native-decompile` = rizin's Ghidra decompiler, no JVM; `ghidra-decompile` = full
-Ghidra headless) + `yara-scan` signatures + `ioc-extract` reporting + **packaging** +
-**dynamic tier** (consent-gated `rekit run --allow-dynamic`, ⚡ in `list`; isolation an
-optional axis, native first-class).
-**16 run out of the box**; 6 BYO-tool (jadx/ilspycmd/rizin/binwalk/ghidra/yara) degrade
-honestly.
+**26 skills** = 21 **static** (read-only, run anywhere) + 1 **contained**
+(`emulate-code`, Unicorn — bytes run on an emulated CPU, not the host; `executes_input:
+sandboxed`, *not* consent-gated) + 4 **dynamic** (`exec-observe`, `syscall-trace`,
+`net-capture`, `frida-trace` — execute the target natively, consent-gated). Source
+detection + binary triage + extraction + decompilers (`native-decompile` = rizin's
+Ghidra decompiler, no JVM; `ghidra-decompile` = full Ghidra headless) + `yara-scan`
+signatures + `ioc-extract` reporting + **packaging** + **dynamic tier** (consent-gated
+`rekit run --allow-dynamic`, ⚡ in `list`; isolation an optional axis, native
+first-class).
+**19 run out of the box**; BYO-tool skills (jadx/ilspycmd/rizin/binwalk/ghidra/yara +
+tracers strace-or-dtruss/tcpdump/frida-trace) degrade honestly via the prereq gate.
 **Chains verified end-to-end:** Electron (unpack→asar→js-deobfuscate/sourcemap→
 js-covert-scan) and Python (pyinstaller-extract→pyc-decompile→py-covert-scan).
 
 ## Queued — remaining
 
-Static tier is feature-complete (21). Dynamic tier just seeded (`exec-observe`); next
-dynamic skills: `strace`/`dtruss` behavioral trace, Frida hooking, network capture,
-Unicorn emulation. New skills drop into `skills/<id>/` per `SKILL-CONTRACT.md`.
+Static tier is feature-complete (21). Dynamic tier built: kernel view
+(`syscall-trace`), API/library view (`frida-trace`), network view (`net-capture`),
+plus contained `emulate-code` (Unicorn) and plain `exec-observe`. Behavioral coverage
+now spans kernel + library + network. Remaining dynamic ideas as needed:
+debugger-driven trace (gdb/x64dbg), memory-dump/runtime-YARA, headless-browser
+detonation for web payloads. New skills drop into `skills/<id>/` per
+`SKILL-CONTRACT.md`.
 
 ## Later
 
