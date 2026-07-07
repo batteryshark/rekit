@@ -28,6 +28,7 @@ import json
 import lzma
 import os
 import shutil
+import struct
 import subprocess
 import sys
 import tarfile
@@ -79,10 +80,62 @@ def detect(path: str) -> str:
             continue
         if head.startswith(sig):
             return fmt
+    # asar (Electron): starts with uint32 LE == 4, then a Pickle'd JSON header.
+    if head[0:4] == b"\x04\x00\x00\x00" and _asar_ok(path):
+        return "asar"
     # tar can be uncompressed without ustar at 257 (old format) — let tarfile decide
     if tarfile.is_tarfile(path) if os.path.isfile(path) else False:
         return "tar"
     return "unknown"
+
+
+def _asar_ok(path: str) -> bool:
+    try:
+        with open(path, "rb") as f:
+            pre = f.read(16)
+            if len(pre) < 16 or pre[0:4] != b"\x04\x00\x00\x00":
+                return False
+            hs = struct.unpack("<I", pre[12:16])[0]
+            if hs <= 0 or hs > 64 * 1024 * 1024:
+                return False
+            obj = json.loads(f.read(hs).decode("utf-8"))
+        return isinstance(obj, dict) and "files" in obj
+    except (OSError, ValueError):
+        return False
+
+
+def _extract_asar(path, outdir, budget, skipped) -> int:
+    n = 0
+    with open(path, "rb") as f:
+        pre = f.read(16)
+        base = 8 + struct.unpack("<I", pre[4:8])[0]
+        header = json.loads(f.read(struct.unpack("<I", pre[12:16])[0]).decode("utf-8"))
+        stack = [("", header)]
+        while stack:
+            prefix, node = stack.pop()
+            for name, entry in node.get("files", {}).items():
+                rel = os.path.join(prefix, name)
+                if "files" in entry:
+                    stack.append((rel, entry))
+                    continue
+                if "link" in entry or entry.get("unpacked"):
+                    skipped.append({"member": rel, "reason": "link/unpacked (not inlined in asar)"})
+                    continue
+                target = _safe_target(outdir, rel)
+                if target is None:
+                    skipped.append({"member": rel, "reason": "path-traversal"})
+                    continue
+                size = int(entry.get("size", 0))
+                if size > _PER_FILE or not budget.take(size):
+                    skipped.append({"member": rel, "reason": "file-too-large / budget"})
+                    continue
+                f.seek(base + int(entry.get("offset", "0")))
+                chunk = f.read(size)
+                os.makedirs(os.path.dirname(target) or outdir, exist_ok=True)
+                with open(target, "wb") as out:
+                    out.write(chunk)
+                n += 1
+    return n
 
 
 def _safe_target(outdir: str, name: str) -> str | None:
@@ -205,6 +258,8 @@ def extract_one(path, outdir, budget, skipped, tools_missing) -> tuple[int, str]
         if tarfile.is_tarfile(path):
             return _extract_tar(path, outdir, budget, skipped), "tar." + fmt
         return _extract_stream(path, outdir, fmt, budget, skipped), fmt
+    if fmt == "asar":
+        return _extract_asar(path, outdir, budget, skipped), fmt
     if fmt in ("7z", "rar"):
         return _extract_cli(path, outdir, fmt, tools_missing), fmt
     return 0, "unknown"
@@ -242,7 +297,7 @@ def run(archive: str, outdir: str, max_depth: int, max_bytes: int) -> dict:
         for fp in _walk_files(dest):
             if fp == apath:
                 continue
-            if detect(fp) in ("zip", "tar", "gz", "bz2", "xz", "7z", "rar"):
+            if detect(fp) in ("zip", "tar", "gz", "bz2", "xz", "7z", "rar", "asar"):
                 sub = fp + ".unpacked"
                 work.append((fp, sub, depth + 1))
 
