@@ -127,6 +127,9 @@ def cmd_doctor(args) -> int:
                 print(f"       - {p['tool']} MISSING ({p['reason']}) — {p['install_hint']}")
         if r.get("error"):
             print(f"       ! {r['error']}")
+    ready = sum(1 for r in reports if r["ready"])
+    print(f"\n{ready}/{len(reports)} skill(s) ready. "
+          f"{'All prerequisites satisfied.' if ready == len(reports) else 'Install the missing tools above to enable the rest.'}")
     return 0 if all_ready else 1
 
 
@@ -173,6 +176,40 @@ def cmd_run(args) -> int:
     return proc.returncode
 
 
+def cmd_install(args) -> int:
+    targets = discover() if not args.id else [_get(args.id)]
+    built = failed = skipped = 0
+    for s in targets:
+        build = s["_dir"] / "scripts" / "build.sh"
+        if not build.is_file():
+            skipped += 1
+            print(f"[--] {s.get('id')}: pure-stdlib / BYO-tool — nothing to vendor")
+            continue
+        print(f"[..] {s.get('id')}: building runtime…")
+        proc = subprocess.run(["bash", str(build)])
+        if proc.returncode == 0:
+            built += 1
+            print(f"[ok] {s.get('id')}")
+        else:
+            failed += 1
+            print(f"[!!] {s.get('id')}: build failed (exit {proc.returncode})")
+    print(f"\n{built} built, {skipped} nothing-to-build, {failed} failed.")
+    return 0 if failed == 0 else 1
+
+
+def cmd_caps(args) -> int:
+    caps: dict = {}
+    for s in discover():
+        for c in s.get("capabilities", []):
+            caps.setdefault(c, []).append(s.get("id"))
+    if args.json:
+        print(json.dumps({k: sorted(v) for k, v in sorted(caps.items())}, indent=2))
+        return 0
+    for c in sorted(caps):
+        print(f"{c:28} {', '.join(sorted(caps[c]))}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="skillpack", description="self-contained agent skills")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -195,6 +232,14 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("rest", nargs=argparse.REMAINDER,
                      help="arguments passed through to the skill")
     run.set_defaults(func=cmd_run)
+
+    inst = sub.add_parser("install", help="vendor skill runtimes (run each build.sh)")
+    inst.add_argument("id", nargs="?", help="one skill id, or omit for all")
+    inst.set_defaults(func=cmd_install)
+
+    caps = sub.add_parser("caps", help="capability → skills index")
+    caps.add_argument("--json", action="store_true")
+    caps.set_defaults(func=cmd_caps)
     return p
 
 
