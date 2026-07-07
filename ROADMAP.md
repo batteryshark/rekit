@@ -20,9 +20,13 @@ useful next.
 | `unpack` | recursive safe archive extraction | pure stdlib (+7z/unar CLI) | python3 |
 | `py-covert-scan` | STEGO/OBF/EVADE atoms in Python | pure stdlib | python3 |
 | `secrets-scan` | leaked credentials (redacted) → `SECRET.*` | pure stdlib | python3 |
+| `pyinstaller-extract` | carve .pyc from PyInstaller exes | pure stdlib | python3 |
 
-**Static analysis layer complete:** JS/Py covert-scan, PE/ELF/Mach-O/.NET triage,
-`bin-triage`, `unpack`, `secrets-scan`. 12 skills. All emit atoms / route cleanly.
+**13 skills.** Static analysis (JS/Py covert-scan, PE/ELF/Mach-O/.NET triage,
+`bin-triage`, `secrets-scan`) + extraction (`unpack` incl. asar, `pyinstaller-extract`).
+**Chains complete + verified end-to-end:** Electron (unpack → asar →
+js-deobfuscate/js-covert-scan) and Python (pyinstaller-extract → pyc-decompile →
+py-covert-scan).
 
 ## Queued — containers / carving / decompilers
 
@@ -33,7 +37,6 @@ useful next.
   bootloaders, nested archives) via **binwalk** (v3 is a Rust single-binary → its own
   prereq). The heavy sibling of `bin-triage`'s embedded-signature scan; still widely
   used for IoT/firmware.
-- **`pyinstaller-extract`** — carve `.pyc` out of PyInstaller bundles (feeds `pyc-decompile`).
 - **`jvm-decompile`** — jadx / CFR (→ `java`).
 - **`dotnet-decompile`** — ilspycmd (→ `dotnet`).
 - **`native-decompile`** — ghidra headless / rizin (→ `java` / bundled).
