@@ -1,0 +1,36 @@
+{
+  "id": "syscall-trace",
+  "name": "Syscall Tracer",
+  "version": "0.1.0",
+  "description": "DYNAMIC: run a target under a syscall tracer (strace on Linux, dtruss on macOS) and summarize its behaviour — files opened, network connects, processes exec'd, and a syscall histogram. EXECUTES the target; consent-gated. dtruss needs root + a permissive SIP.",
+  "capabilities": ["syscall-trace", "behavioral-trace", "dynamic-analysis"],
+  "prerequisites": [
+    {"tool": "python3", "min_version": "3.8", "check": ["python3", "--version"],
+     "install_hint": "Install Python 3.8+ for the runner."},
+    {"tool": "strace/dtruss", "check": ["sh", "-c", "command -v strace || command -v dtruss"],
+     "install_hint": "Install strace (Linux). On macOS dtruss ships but needs root + a permissive SIP."}
+  ],
+  "safety": {
+    "executes_input": "full",
+    "network": "target-controlled",
+    "tier": 3,
+    "notes": "DYNAMIC — the tracer runs the target natively; it can do anything the host allows. Consent-gated (--allow-dynamic; runner also checks REKIT_ALLOW_DYNAMIC=1/--yes-i-consent). Timeout-bounded. Isolation is the operator's choice — run in a disposable VM / analysis box."
+  },
+  "entry": {
+    "command": ["python3", "runtime/run.py"],
+    "args": [
+      {"name": "target",    "type": "file", "required": true,  "desc": "executable/script to trace"},
+      {"name": "--timeout", "type": "int",  "required": false, "desc": "seconds before kill (default 30)"},
+      {"name": "--format",  "type": "enum", "required": false, "desc": "text | json (default text)"}
+    ],
+    "result": {"channel": "stdout", "format": "text|json",
+               "fields": {"ok": "bool", "tool": "string", "exitCode": "int|null", "syscallHistogram": "object", "filesOpened": "array", "network": "array", "execs": "array"}}
+  },
+  "payload": {
+    "tool": "strace / dtruss",
+    "source": "https://strace.io",
+    "vendored": null,
+    "runner": "runtime/run.py",
+    "note": "BYO tracer on PATH. The core behavioral dynamic skill; complements exec-observe (surface only) and emulate-code (contained). Feed the recovered files/network into ioc-extract for reporting."
+  }
+}
