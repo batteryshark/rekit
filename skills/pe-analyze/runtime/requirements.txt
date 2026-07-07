@@ -1,0 +1,2 @@
+# Pinned so the vendored runtime is reproducible. Pure-Python → portable.
+pefile==2024.8.26
