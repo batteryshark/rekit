@@ -2,6 +2,7 @@
 # scripts/build.sh. Ignored for the spike to keep the repo lean/reviewable; when a
 # skill graduates we decide commit-vs-git-lfs for its runtime.
 skills/*/runtime/node_modules/
+skills/*/runtime/site/
 
 # Python / OS / tooling
 __pycache__/
