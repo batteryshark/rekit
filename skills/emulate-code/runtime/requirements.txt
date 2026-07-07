@@ -1,0 +1,2 @@
+# Unicorn CPU emulator. Native, but wheels cover the common platforms.
+unicorn==2.1.4
