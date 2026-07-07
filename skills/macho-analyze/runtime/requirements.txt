@@ -1,0 +1,2 @@
+# Pinned so the vendored runtime is reproducible. Pure-Python → portable.
+macholib==1.16.3
