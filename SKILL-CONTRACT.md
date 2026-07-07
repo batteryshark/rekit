@@ -67,6 +67,11 @@ Nothing else is registered anywhere — dropping a folder in is registration.
   "none"` where possible; use `"sandboxed"` when the skill runs a narrow slice of the
   input inside an isolated VM (e.g. a deobfuscator decoding an encoded string array),
   and `"full"` only when dynamic execution is the whole point (then say so loudly).
+  **Dynamic tier:** `executes_input: "full"` skills are gated — the dispatcher requires
+  `rekit run --allow-dynamic <skill>` (consent, *not* a sandbox requirement; it passes
+  `REKIT_ALLOW_DYNAMIC=1` to the runner) and marks them ⚡ in `list`. Such a runner should
+  also refuse a direct call lacking that consent. Isolation (VM/container/OpenShell/Frida)
+  is a separate, optional axis — native execution is fine on a box you don't mind risking.
 - **`entry.command`** — argv prefix, resolved relative to the skill dir. The
   dispatcher appends the caller's positional args in `entry.args` order.
 - **`entry.result`** — the runner SHOULD print a single JSON object to stdout as its
