@@ -1,0 +1,41 @@
+{
+  "id": "secrets-scan",
+  "name": "Secrets Scanner",
+  "version": "0.1.0",
+  "description": "Find leaked credentials in files: high-signal provider patterns (AWS/GitHub/Slack/Google/Stripe/OpenAI/SendGrid/Twilio/JWT/PEM private keys) plus a generic high-entropy secret-assignment catch with placeholder filtering. Matches are REDACTED in output — never echoes a full secret. Pure stdlib, read-only.",
+  "capabilities": ["scan-secrets", "detect-credentials", "emit-atoms"],
+  "prerequisites": [
+    {
+      "tool": "python3",
+      "min_version": "3.8",
+      "check": ["python3", "--version"],
+      "install_hint": "Install Python 3.8+ — pure stdlib, no other dependency."
+    }
+  ],
+  "safety": {
+    "executes_input": "no",
+    "network": "none",
+    "tier": 0,
+    "notes": "Read-only. Reads text files and regex/entropy-matches. Redacts secret values in output. Never validates a key against a remote service, imports, or executes anything."
+  },
+  "entry": {
+    "command": ["python3", "runtime/scan.py"],
+    "args": [
+      {"name": "input",         "type": "path", "required": true,  "desc": "file OR directory to scan"},
+      {"name": "--format",      "type": "enum", "required": false, "desc": "text | json (default text)"},
+      {"name": "--min-entropy", "type": "float","required": false, "desc": "entropy gate for generic assignments (default 3.2)"}
+    ],
+    "result": {
+      "channel": "stdout",
+      "format": "text|json",
+      "fields": {"ok": "bool", "filesScanned": "int", "findingCount": "int", "summary": "object", "findings": "array"}
+    }
+  },
+  "payload": {
+    "tool": "(builtin)",
+    "vendored": null,
+    "runner": "runtime/scan.py",
+    "pure_stdlib": true,
+    "note": "Zero-dependency. Provider patterns are specific/high-confidence; the generic catch is entropy-gated + placeholder-filtered to limit noise. Values are redacted (prefix…suffix [len]); private keys report presence only. Emits SECRET.* atoms."
+  }
+}
