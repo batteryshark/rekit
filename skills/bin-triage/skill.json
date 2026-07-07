@@ -1,0 +1,41 @@
+{
+  "id": "bin-triage",
+  "name": "Binary Triage (format-agnostic)",
+  "version": "0.1.0",
+  "description": "Fast format-agnostic first look at any file, pure-stdlib: identify format from magic bytes (and route to the right analyzer), chunked Shannon entropy (packed/encrypted regions), string extraction with interesting-string surfacing (URLs/IPs/onion/shell/paths/exec-APIs), and an embedded-signature scan (mini-binwalk: ZIP/gzip/ELF/PDF at non-zero offsets). Emits BINARY.* atoms. Read-only — never executes the input.",
+  "capabilities": ["triage-binary", "identify-format", "extract-strings", "detect-embedded", "emit-atoms"],
+  "prerequisites": [
+    {
+      "tool": "python3",
+      "min_version": "3.8",
+      "check": ["python3", "--version"],
+      "install_hint": "Install Python 3.8+ — pure stdlib, no other dependency."
+    }
+  ],
+  "safety": {
+    "executes_input": "no",
+    "network": "none",
+    "tier": 0,
+    "notes": "Read-only. Reads bytes and computes magic/entropy/strings/signatures. Never parses as code or executes the input."
+  },
+  "entry": {
+    "command": ["python3", "runtime/triage.py"],
+    "args": [
+      {"name": "input",     "type": "file", "required": true,  "desc": "any file to triage"},
+      {"name": "--format",  "type": "enum", "required": false, "desc": "text | json (default text)"},
+      {"name": "--max-bytes", "type": "int", "required": false, "desc": "read cap (default 64 MiB)"}
+    ],
+    "result": {
+      "channel": "stdout",
+      "format": "text|json",
+      "fields": {"ok": "bool", "size": "int", "formats": "array", "entropyFirstMiB": "number", "interestingStrings": "object", "embeddedSignatures": "array", "atoms": "array"}
+    }
+  },
+  "payload": {
+    "tool": "(builtin)",
+    "vendored": null,
+    "runner": "runtime/triage.py",
+    "pure_stdlib": true,
+    "note": "Zero-dependency first-look. Routes to the format-specific analyzers (pe/elf/macho/dotnet-analyze) or unpack. The embedded-signature scan is a lightweight mini-binwalk; use binwalk-carve for real extraction."
+  }
+}
