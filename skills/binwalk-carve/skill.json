@@ -1,0 +1,36 @@
+{
+  "id": "binwalk-carve",
+  "name": "Firmware Carver (binwalk)",
+  "version": "0.1.0",
+  "description": "Carve and recursively extract embedded files from a firmware image or blob (filesystems, bootloaders, nested archives) with binwalk. The heavy sibling of bin-triage's embedded-signature preview. Prereq-gated on binwalk; honest blind spot with an install hint when absent.",
+  "capabilities": ["carve-firmware", "extract-embedded", "unpack-firmware"],
+  "prerequisites": [
+    {"tool": "python3", "min_version": "3.8", "check": ["python3", "--version"],
+     "install_hint": "Install Python 3.8+ for the runner."},
+    {"tool": "binwalk", "check": ["binwalk", "--help"],
+     "install_hint": "Install binwalk v3 (https://github.com/ReFirmLabs/binwalk) — a single Rust binary; some extractors also want unsquashfs/jefferson/sasquatch on PATH."}
+  ],
+  "safety": {
+    "executes_input": "no",
+    "network": "none",
+    "tier": 1,
+    "notes": "Trusted carver over untrusted firmware. binwalk scans signatures and runs extractors (decompress/unpack) — it does not run the firmware. Extractors are numerous; run this sandboxed (no network, writable output dir only) with the timeout."
+  },
+  "entry": {
+    "command": ["python3", "runtime/run.py"],
+    "args": [
+      {"name": "input",    "type": "file", "required": true,  "desc": "firmware image / blob"},
+      {"name": "outdir",   "type": "dir",  "required": true,  "desc": "output dir for the carved tree"},
+      {"name": "--format", "type": "enum", "required": false, "desc": "text | json (default text)"}
+    ],
+    "result": {"channel": "stdout", "format": "text|json",
+               "fields": {"ok": "bool", "tool": "string", "extractedTo": "string", "filesExtracted": "int", "exitCode": "int", "scan": "string"}}
+  },
+  "payload": {
+    "tool": "binwalk",
+    "source": "https://github.com/ReFirmLabs/binwalk",
+    "vendored": null,
+    "runner": "runtime/run.py",
+    "note": "BYO tool on PATH (binwalk pulls a whole extractor ecosystem; not bundled). Runs `binwalk -e` with cwd=outdir so the carved tree lands there on v2 or v3. Dispatcher prereq gate = honest degradation. Feeds the *-analyze / covert-scan skills on the revealed tree."
+  }
+}
