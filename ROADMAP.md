@@ -1,4 +1,4 @@
-# skillpacks — capability roadmap
+# rekit — capability roadmap
 
 The pile of analysis capabilities. Each becomes a self-contained skill under
 `skills/<id>/` following `SKILL-CONTRACT.md`. Order is loose — build whatever's most

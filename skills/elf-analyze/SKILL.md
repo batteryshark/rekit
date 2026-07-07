@@ -27,8 +27,8 @@ maps, or executes the binary. Safe on hostile files.
 ## Usage
 
 ```bash
-skillpack run elf-analyze ./suspicious.so
-skillpack run elf-analyze ./payload --format json
+rekit run elf-analyze ./suspicious.so
+rekit run elf-analyze ./payload --format json
 ```
 
 Non-ELF input fails honestly (`{"ok": false, "error": "not a valid ELF: …"}`).

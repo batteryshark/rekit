@@ -27,8 +27,8 @@ executes the binary. Safe on hostile files.
 ## Usage
 
 ```bash
-skillpack run macho-analyze ./suspicious.dylib
-skillpack run macho-analyze /path/to/app.app/Contents/MacOS/app --format json
+rekit run macho-analyze ./suspicious.dylib
+rekit run macho-analyze /path/to/app.app/Contents/MacOS/app --format json
 ```
 
 Non-Mach-O input fails honestly (`{"ok": false, "error": "not a valid Mach-O: …"}`).

@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""skillpack — discover, doctor, and run self-contained agent skills.
+"""rekit — discover, doctor, and run self-contained agent skills.
 
 Pure stdlib. Discovery is "scan skills/*/skill.json"; there is no registry.
 See ../SKILL-CONTRACT.md for the manifest shape.
 
-    skillpack list [--json]
-    skillpack doctor [<id>] [--json]
-    skillpack info <id>
-    skillpack run <id> [args...]
+    rekit list [--json]
+    rekit doctor [<id>] [--json]
+    rekit info <id>
+    rekit run <id> [args...]
 """
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ def _get(skill_id: str) -> dict:
     for s in discover():
         if s.get("id") == skill_id:
             return s
-    sys.exit(f"skillpack: no skill with id '{skill_id}' (try `skillpack list`)")
+    sys.exit(f"rekit: no skill with id '{skill_id}' (try `rekit list`)")
 
 
 def _parse_version(text: str) -> tuple[int, ...] | None:
@@ -149,7 +149,7 @@ def cmd_run(args) -> int:
     if not report["ready"]:
         missing = [p for p in report["prerequisites"] if not p["present"]]
         for p in missing:
-            print(f"skillpack: '{s['id']}' unavailable — {p['tool']} missing "
+            print(f"rekit: '{s['id']}' unavailable — {p['tool']} missing "
                   f"({p['reason']}). {p['install_hint']}", file=sys.stderr)
         print(json.dumps({"ok": False, "error": "prerequisites missing",
                           "missing": [p["tool"] for p in missing]}))
@@ -157,7 +157,7 @@ def cmd_run(args) -> int:
     entry = s.get("entry", {})
     command = list(entry.get("command", []))
     if not command:
-        sys.exit(f"skillpack: skill '{s['id']}' has no entry.command")
+        sys.exit(f"rekit: skill '{s['id']}' has no entry.command")
     # Resolve a relative script path (command[-1] or command[1]) against the skill dir.
     skill_dir = s["_dir"]
     resolved = []
@@ -172,7 +172,7 @@ def cmd_run(args) -> int:
     try:
         proc = subprocess.run(argv)
     except FileNotFoundError as exc:
-        sys.exit(f"skillpack: cannot run '{s['id']}': {exc}")
+        sys.exit(f"rekit: cannot run '{s['id']}': {exc}")
     return proc.returncode
 
 
@@ -211,7 +211,7 @@ def cmd_caps(args) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="skillpack", description="self-contained agent skills")
+    p = argparse.ArgumentParser(prog="rekit", description="self-contained agent skills")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     lst = sub.add_parser("list", help="list discovered skills")

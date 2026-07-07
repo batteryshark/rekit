@@ -27,9 +27,9 @@ the executable or imports any extracted module.
 ## Usage
 
 ```bash
-skillpack run pyinstaller-extract ./suspicious.exe ./out
+rekit run pyinstaller-extract ./suspicious.exe ./out
 # then decompile the recovered modules:
-skillpack run pyc-decompile ./out/PYZ-contents/app.pyc ./src
+rekit run pyc-decompile ./out/PYZ-contents/app.pyc ./src
 ```
 
 Non-PyInstaller input → `{"isPyInstaller": false, "note": "…"}`.

@@ -28,8 +28,8 @@ Strictly **read-only** — reads bytes only, never parses as code or executes.
 ## Usage
 
 ```bash
-skillpack run bin-triage ./unknown.bin
-skillpack run bin-triage ./firmware.img --format json
+rekit run bin-triage ./unknown.bin
+rekit run bin-triage ./firmware.img --format json
 ```
 
 ## Prerequisites

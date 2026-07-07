@@ -25,8 +25,8 @@ Read-only, pure stdlib. Then scan the recovered tree with `js-covert-scan` /
 ## Usage
 
 ```bash
-skillpack run js-sourcemap-extract ./app.min.js.map ./out
-skillpack run js-sourcemap-extract ./bundle.js ./out    # follows its sourceMappingURL
+rekit run js-sourcemap-extract ./app.min.js.map ./out
+rekit run js-sourcemap-extract ./bundle.js ./out    # follows its sourceMappingURL
 ```
 
 No map found → `{"hasSourceMap": false, "note": "…"}`.

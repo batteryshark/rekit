@@ -26,7 +26,7 @@ the bytecode's version and tells you whether it's in range; for older bytecode u
 ## Usage
 
 ```bash
-skillpack run pyc-decompile ./payload.pyc ./out
+rekit run pyc-decompile ./payload.pyc ./out
 # or
 python3 skills/pyc-decompile/runtime/run.py ./payload.pyc ./out
 ```

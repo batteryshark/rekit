@@ -25,9 +25,9 @@ presence only. It never validates a key against a live service — no network, e
 ## Usage
 
 ```bash
-skillpack run secrets-scan ./package
-skillpack run secrets-scan ./.env --format json
-skillpack run secrets-scan ./src --min-entropy 3.5   # stricter generic gate
+rekit run secrets-scan ./package
+rekit run secrets-scan ./.env --format json
+rekit run secrets-scan ./src --min-entropy 3.5   # stricter generic gate
 ```
 
 ## Prerequisites

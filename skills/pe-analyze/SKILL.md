@@ -27,8 +27,8 @@ the binary. Safe on hostile files.
 ## Usage
 
 ```bash
-skillpack run pe-analyze ./sample.exe
-skillpack run pe-analyze ./driver.sys --format json
+rekit run pe-analyze ./sample.exe
+rekit run pe-analyze ./driver.sys --format json
 ```
 
 Non-PE input fails honestly (`{"ok": false, "error": "not a valid PE: …"}`).

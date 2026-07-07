@@ -30,5 +30,5 @@ runs the target. The project dir is deleted afterward; analysis is timeout-bound
 ## Usage
 
 ```bash
-skillpack run ghidra-decompile ./suspicious.elf ./out
+rekit run ghidra-decompile ./suspicious.elf ./out
 ```

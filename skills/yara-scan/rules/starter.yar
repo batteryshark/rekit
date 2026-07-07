@@ -1,5 +1,5 @@
 /*
- * skillpacks yara-scan — starter rule pack.
+ * rekit yara-scan — starter rule pack.
  *
  * A small, high-signal set to get going. It is NOT a substitute for a real rule
  * corpus — point --rules at YARA-Rules, Neo23x0/signature-base, or your own set for
@@ -10,7 +10,7 @@ rule Embedded_PE_Executable
 {
     meta:
         description = "PE header present (dropped/embedded Windows executable)"
-        author = "skillpacks"
+        author = "rekit"
     strings:
         $mz = { 4D 5A }
         $pe = { 50 45 00 00 }

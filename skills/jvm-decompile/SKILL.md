@@ -17,11 +17,11 @@ never executes it) and reports how many files were written.
 
 - **python3** (runner) and **`jadx`** on PATH. jadx is a large JVM application that
   needs a JRE (java ≥ 11), so it is **not bundled** — install it and put it on PATH.
-  Until then `skillpack doctor` shows this skill as not-ready and `run` reports the
+  Until then `rekit doctor` shows this skill as not-ready and `run` reports the
   honest blind spot with an install hint (nothing is silently skipped).
 
 ## Usage
 
 ```bash
-skillpack run jvm-decompile ./app.apk ./out
+rekit run jvm-decompile ./app.apk ./out
 ```
