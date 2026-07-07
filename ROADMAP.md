@@ -28,11 +28,13 @@ useful next.
 | `binwalk-carve` | firmware / embedded-file extraction | binwalk (BYO) |
 | `ghidra-decompile` | full Ghidra headless decompile (hard targets) | analyzeHeadless (BYO) |
 | `yara-scan` | YARA signature scan + starter rule pack | yara (BYO) |
+| `ioc-extract` | defanged IOCs (urls/ips/hashes/…) from any file | pure stdlib · python3 |
 
-**20 skills.** Static analysis + extraction + decompilers (`native-decompile` = rizin's
-built-in Ghidra decompiler; `ghidra-decompile` = full Ghidra headless) + `yara-scan`
-signatures + **packaging**. 6 are BYO-tool (jadx/ilspycmd/rizin/binwalk/ghidra/yara) →
-honest prereq-gated degradation; 14 run out of the box.
+**21 skills.** Source detection + binary triage + extraction + decompilers
+(`native-decompile` = rizin's Ghidra decompiler, no JVM; `ghidra-decompile` = full
+Ghidra headless) + `yara-scan` signatures + `ioc-extract` reporting + **packaging**.
+**15 run out of the box**; 6 BYO-tool (jadx/ilspycmd/rizin/binwalk/ghidra/yara) degrade
+honestly.
 **Chains verified end-to-end:** Electron (unpack→asar→js-deobfuscate/sourcemap→
 js-covert-scan) and Python (pyinstaller-extract→pyc-decompile→py-covert-scan).
 
