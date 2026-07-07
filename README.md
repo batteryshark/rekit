@@ -22,7 +22,7 @@ bin/skillpack run <id> <args...>      # run one (checks prereqs first)
 bin/skillpack info <id>               # manifest + SKILL.md
 ```
 
-## The skills (17)
+## The skills (18)
 
 **Source detection** (pure stdlib, read-only, emit atoms)
 | Skill | What | Prereq |
@@ -56,6 +56,7 @@ bin/skillpack info <id>               # manifest + SKILL.md
 |---|---|---|
 | `unpack` | recursive, safe: zip/tar/gz/bz2/xz/**asar**/**ar·deb** (+7z/rar via CLI) | python3 |
 | `pyinstaller-extract` | carve `.pyc` out of PyInstaller executables | python3 |
+| `binwalk-carve` | carve/extract embedded files from firmware images | binwalk (BYO) |
 
 ### Chains
 

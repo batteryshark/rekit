@@ -25,20 +25,18 @@ useful next.
 | `jvm-decompile` | apk/dex/jar/class → Java | jadx (BYO) |
 | `dotnet-decompile` | .NET IL → C# | ilspycmd (BYO) |
 | `native-decompile` | ELF/PE/Mach-O → C (rizin `pdg`) | rizin (BYO) |
+| `binwalk-carve` | firmware / embedded-file extraction | binwalk (BYO) |
 
-**17 skills.** Static analysis + extraction (`unpack` incl. asar + ar/deb,
-`pyinstaller-extract`) + prereq-gated decompilers (jvm/dotnet/native — honest
-degradation) + **packaging** (`skillpack install`/`caps`, doctor summary, README).
+**18 skills.** Static analysis + extraction (`unpack` incl. asar + ar/deb,
+`pyinstaller-extract`, `binwalk-carve`) + prereq-gated decompilers (jvm/dotnet/native —
+honest degradation) + **packaging** (`skillpack install`/`caps`, doctor summary, README).
 **Chains verified end-to-end:** Electron (unpack→asar→js-deobfuscate/sourcemap→
 js-covert-scan) and Python (pyinstaller-extract→pyc-decompile→py-covert-scan).
 
 ## Queued — remaining
 
-- **`binwalk-carve`** — firmware / embedded-file carving & extraction (filesystems,
-  bootloaders, nested archives) via **binwalk** (v3 is a Rust single-binary → its own
-  prereq). The heavy sibling of `bin-triage`'s embedded-signature scan; still widely
-  used for IoT/firmware. (`unpack` already covers zip/tar/gz/bz2/xz/asar/ar/deb +
-  7z/rar via CLI; `bin-triage` previews embedded signatures.)
+Nothing queued — the toolset is feature-complete for now (18 skills). New skills just
+drop into `skills/<id>/` following `SKILL-CONTRACT.md`.
 
 ## Later
 
