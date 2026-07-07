@@ -1,0 +1,3 @@
+# Qiling emulation framework. Pulls unicorn/capstone/keystone/pefile/… — heavier than
+# plain unicorn, but pure-python glue over native wheels, so `uv pip --target` works.
+qiling==1.4.6

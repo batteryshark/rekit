@@ -5,9 +5,11 @@ Pure stdlib. Discovery is "scan skills/*/skill.json"; there is no registry.
 See ../SKILL-CONTRACT.md for the manifest shape.
 
     rekit list [--json]
+    rekit search <query> [--capability C] [--tier N] [--dynamic|--static] [--json]
     rekit doctor [<id>] [--json]
     rekit info <id>
     rekit run <id> [args...]
+    rekit caps [--json]
 """
 
 from __future__ import annotations
@@ -215,6 +217,82 @@ def cmd_install(args) -> int:
     return 0 if failed == 0 else 1
 
 
+_WORD_RE = re.compile(r"[a-z0-9]+")
+
+
+def _tokens(text: str) -> list[str]:
+    return _WORD_RE.findall((text or "").lower())
+
+
+def _score(skill: dict, qtokens: list[str]) -> tuple[int, list[str]]:
+    """Keyword relevance of a skill to the query. Field-weighted substring match — no
+    embeddings, no index; scales fine to hundreds of skills and stays dependency-free."""
+    caps = [c.lower() for c in skill.get("capabilities", [])]
+    tools = [(p.get("tool") or "").lower() for p in skill.get("prerequisites", [])]
+    # (weight, why-label, haystack)
+    fields = [
+        (6, "capability", " ".join(caps)),
+        (4, "id", (skill.get("id") or "").lower()),
+        (3, "name", (skill.get("name") or "").lower()),
+        (2, "prereq", " ".join(tools)),
+        (1, "description", (skill.get("description") or "").lower()),
+    ]
+    score, why = 0, []
+    for weight, label, hay in fields:
+        if any(t in hay for t in qtokens):
+            score += weight * sum(1 for t in qtokens if t in hay)
+            why.append(label)
+    # whole-query bonus when it lands inside one capability (e.g. "decompile" → *-decompile)
+    joined = "".join(qtokens)
+    if joined and any(joined in c.replace("-", "") for c in caps):
+        score += 3
+        if "capability" not in why:
+            why.append("capability")
+    return score, why
+
+
+def cmd_search(args) -> int:
+    qtokens = _tokens(args.query)
+    if not qtokens:
+        sys.exit("rekit: empty query")
+    hits = []
+    for s in discover():
+        if s.get("_error"):
+            continue
+        safety = s.get("safety") or {}
+        exec_in = safety.get("executes_input", "no")
+        tier = safety.get("tier")
+        if args.capability and args.capability not in (s.get("capabilities") or []):
+            continue
+        if args.dynamic and exec_in != "full":
+            continue
+        if args.static and exec_in == "full":
+            continue
+        if args.tier is not None and isinstance(tier, int) and tier > args.tier:
+            continue
+        score, why = _score(s, qtokens)
+        if score > 0:
+            hits.append((score, why, s))
+    hits.sort(key=lambda x: (-x[0], x[2].get("id", "")))
+    hits = hits[: args.limit]
+    if args.json:
+        print(json.dumps([{"id": s.get("id"), "score": sc, "matched": why,
+                           "description": s.get("description"),
+                           "capabilities": s.get("capabilities", []),
+                           "executesInput": (s.get("safety") or {}).get("executes_input", "no")}
+                          for sc, why, s in hits], indent=2))
+        return 0 if hits else 1
+    if not hits:
+        print(f"no skills match '{args.query}'. Try `rekit caps` for the capability index.")
+        return 1
+    for sc, why, s in hits:
+        is_dyn = (s.get("safety") or {}).get("executes_input") == "full"
+        print(f"{s.get('id', ''):20} {'⚡ ' if is_dyn else ''}{s.get('description', '')}")
+        print(f"{'':20} · match: {', '.join(why)}  (score {sc})")
+    print(f"\n{len(hits)} result(s). `rekit info <id>` for details · `rekit run <id> …` to use.")
+    return 0
+
+
 def cmd_caps(args) -> int:
     caps: dict = {}
     for s in discover():
@@ -235,6 +313,16 @@ def build_parser() -> argparse.ArgumentParser:
     lst = sub.add_parser("list", help="list discovered skills")
     lst.add_argument("--json", action="store_true")
     lst.set_defaults(func=cmd_list)
+
+    srch = sub.add_parser("search", help="find skills by keyword / capability")
+    srch.add_argument("query", help="free text — matched against id, name, capabilities, prereq tools, description")
+    srch.add_argument("--capability", help="require this exact capability")
+    srch.add_argument("--tier", type=int, help="only skills at or below this safety tier")
+    srch.add_argument("--dynamic", action="store_true", help="only DYNAMIC skills (execute the target)")
+    srch.add_argument("--static", action="store_true", help="exclude DYNAMIC skills")
+    srch.add_argument("--limit", type=int, default=12, help="max results (default 12)")
+    srch.add_argument("--json", action="store_true")
+    srch.set_defaults(func=cmd_search)
 
     doc = sub.add_parser("doctor", help="check skill prerequisites")
     doc.add_argument("id", nargs="?")
