@@ -21,27 +21,27 @@ useful next.
 | `py-covert-scan` | STEGO/OBF/EVADE atoms in Python | pure stdlib | python3 |
 | `secrets-scan` | leaked credentials (redacted) → `SECRET.*` | pure stdlib | python3 |
 | `pyinstaller-extract` | carve .pyc from PyInstaller exes | pure stdlib | python3 |
+| `js-sourcemap-extract` | recover original sources from a JS source map | pure stdlib | python3 |
+| `jvm-decompile` | apk/dex/jar/class → Java | jadx (BYO) |
+| `dotnet-decompile` | .NET IL → C# | ilspycmd (BYO) |
+| `native-decompile` | ELF/PE/Mach-O → C (rizin `pdg`) | rizin (BYO) |
 
-**13 skills.** Static analysis (JS/Py covert-scan, PE/ELF/Mach-O/.NET triage,
-`bin-triage`, `secrets-scan`) + extraction (`unpack` incl. asar, `pyinstaller-extract`).
-**Chains complete + verified end-to-end:** Electron (unpack → asar →
-js-deobfuscate/js-covert-scan) and Python (pyinstaller-extract → pyc-decompile →
-py-covert-scan).
+**17 skills.** Static analysis + extraction (`unpack` incl. asar + ar/deb,
+`pyinstaller-extract`) + prereq-gated decompilers (jvm/dotnet/native — honest
+degradation) + **packaging** (`skillpack install`/`caps`, doctor summary, README).
+**Chains verified end-to-end:** Electron (unpack→asar→js-deobfuscate/sourcemap→
+js-covert-scan) and Python (pyinstaller-extract→pyc-decompile→py-covert-scan).
 
-## Queued — containers / carving / decompilers
+## Queued — remaining
 
-- **`unpack` follow-ups** — done: zip/tar/gz/bz2/xz + 7z/RAR (CLI) + **asar** (Electron,
-  pure-python, base=8+u32@4, verified). Still to add: **ar/deb** extraction.
-  (py7zr was rejected — native, python-ABI-locked deps; use the `7z` CLI instead.)
 - **`binwalk-carve`** — firmware / embedded-file carving & extraction (filesystems,
   bootloaders, nested archives) via **binwalk** (v3 is a Rust single-binary → its own
   prereq). The heavy sibling of `bin-triage`'s embedded-signature scan; still widely
-  used for IoT/firmware.
-- **`jvm-decompile`** — jadx / CFR (→ `java`).
-- **`dotnet-decompile`** — ilspycmd (→ `dotnet`).
-- **`native-decompile`** — ghidra headless / rizin (→ `java` / bundled).
+  used for IoT/firmware. (`unpack` already covers zip/tar/gz/bz2/xz/asar/ar/deb +
+  7z/rar via CLI; `bin-triage` previews embedded signatures.)
 
 ## Later
 
-Wire skills into `unmask-re` as providers (atoms/artifacts → skill → rescan). Not
-now — capabilities first.
+Wire skills into `unmask-re` as providers (atoms/artifacts → skill → rescan) — deferred:
+the `unmask` scanner is being rebuilt natively in parallel, so integrating now would
+collide. Capabilities first.
