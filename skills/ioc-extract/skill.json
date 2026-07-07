@@ -1,0 +1,36 @@
+{
+  "id": "ioc-extract",
+  "name": "IOC Extractor",
+  "version": "0.1.0",
+  "description": "Pull indicators of compromise from a file or directory (URLs, IPs, domains, emails, md5/sha1/sha256 hashes, .onion, CVEs, BTC/ETH addresses, registry keys) — from text and from strings mined out of binaries. Every value is DEFANGED in output (hxxp://evil[.]com, 1[.]2[.]3[.]4) so a report can't ship a live IOC. Pure stdlib, read-only; never resolves or fetches anything.",
+  "capabilities": ["extract-iocs", "defang-iocs", "emit-indicators"],
+  "prerequisites": [
+    {"tool": "python3", "min_version": "3.8", "check": ["python3", "--version"],
+     "install_hint": "Install Python 3.8+ — pure stdlib, no other dependency."}
+  ],
+  "safety": {
+    "executes_input": "no",
+    "network": "none",
+    "tier": 0,
+    "notes": "Read-only. Regex over file bytes / extracted strings; defangs output. Never connects to, resolves, or validates any indicator."
+  },
+  "entry": {
+    "command": ["python3", "runtime/extract.py"],
+    "args": [
+      {"name": "input",    "type": "path", "required": true,  "desc": "file OR directory to scan"},
+      {"name": "--format", "type": "enum", "required": false, "desc": "text | json (default text)"}
+    ],
+    "result": {
+      "channel": "stdout",
+      "format": "text|json",
+      "fields": {"ok": "bool", "filesScanned": "int", "iocCount": "int", "summary": "object", "iocs": "array"}
+    }
+  },
+  "payload": {
+    "tool": "(builtin)",
+    "vendored": null,
+    "runner": "runtime/extract.py",
+    "pure_stdlib": true,
+    "note": "Zero-dependency. Domains are filtered against a filename-extension blocklist and IPs against benign/octet checks to cut noise; both raw `value` and `defanged` are returned. A reporting utility over any file or an extracted/decompiled tree."
+  }
+}
