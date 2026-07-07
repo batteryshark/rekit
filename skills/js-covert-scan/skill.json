@@ -1,0 +1,40 @@
+{
+  "id": "js-covert-scan",
+  "name": "JavaScript Covert-Tactics Scanner",
+  "version": "0.1.0",
+  "description": "Detect covert/evasive tactics in JavaScript/TypeScript: Unicode steganography (invisible/zero-width/bidi chars, confusable-homoglyph punctuation and letters), XOR/char-code/escape string hiding, and environment-keyed conditional behavior (timezone/locale/geo/proxy). Emits STEGO.*/OBF.*/EVADE.* atoms and flags when tactic families co-occur. Static and read-only.",
+  "capabilities": ["detect-js-steganography", "detect-js-obfuscation-tactics", "detect-js-evasion", "emit-atoms"],
+  "prerequisites": [
+    {
+      "tool": "python3",
+      "min_version": "3.8",
+      "check": ["python3", "--version"],
+      "install_hint": "Install Python 3.8+ — pure stdlib, no other dependency."
+    }
+  ],
+  "safety": {
+    "executes_input": "no",
+    "network": "none",
+    "tier": 0,
+    "notes": "Read-only static scan (regex + Unicode category analysis). Never parses as code, imports, or executes the input."
+  },
+  "entry": {
+    "command": ["python3", "runtime/scan.py"],
+    "args": [
+      {"name": "input",    "type": "path", "required": true,  "desc": "file OR directory of .js/.ts/.mjs/.cjs/.jsx/.tsx to scan"},
+      {"name": "--format", "type": "enum", "required": false, "desc": "text | json (default text)"}
+    ],
+    "result": {
+      "channel": "stdout",
+      "format": "text|json",
+      "fields": {"ok": "bool", "filesScanned": "int", "findingCount": "int", "summary": "object", "families": "array", "assessment": "string", "findings": "array"}
+    }
+  },
+  "payload": {
+    "tool": "(builtin)",
+    "vendored": null,
+    "runner": "runtime/scan.py",
+    "pure_stdlib": true,
+    "note": "Zero-dependency detector (Unicode via stdlib unicodedata + regex). Emits STEGO.*/OBF.*/EVADE.* atoms; the strongest signal is co-occurrence across families (hidden text + obfuscation + environment-keyed branching). Deliberately tactic-focused, not tied to any single incident."
+  }
+}
