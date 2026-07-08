@@ -92,6 +92,15 @@ def doctor_skill(skill: dict) -> dict:
 
 # --- commands --------------------------------------------------------------
 
+def _marker(skill: dict) -> str:
+    """Tier glyph: ⚡ DYNAMIC (executes the target) · 🔨 CONSTRUCT (produces an artifact)."""
+    if (skill.get("safety") or {}).get("executes_input") == "full":
+        return "⚡ "
+    if skill.get("kind") == "construct":
+        return "🔨 "
+    return ""
+
+
 def cmd_list(args) -> int:
     skills = discover()
     if args.json:
@@ -103,8 +112,7 @@ def cmd_list(args) -> int:
         return 0
     for s in skills:
         caps = ", ".join(s.get("capabilities", []))
-        is_dyn = (s.get("safety") or {}).get("executes_input") == "full"
-        print(f"{s.get('id', '?'):18} {'⚡ ' if is_dyn else ''}{s.get('description', s.get('_error', ''))}")
+        print(f"{s.get('id', '?'):18} {_marker(s)}{s.get('description', s.get('_error', ''))}")
         if caps:
             print(f"{'':18} capabilities: {caps}")
     return 0
@@ -262,11 +270,16 @@ def cmd_search(args) -> int:
         safety = s.get("safety") or {}
         exec_in = safety.get("executes_input", "no")
         tier = safety.get("tier")
+        kind = s.get("kind", "analyze")
         if args.capability and args.capability not in (s.get("capabilities") or []):
             continue
         if args.dynamic and exec_in != "full":
             continue
         if args.static and exec_in == "full":
+            continue
+        if args.construct and kind != "construct":
+            continue
+        if args.analyze and kind == "construct":
             continue
         if args.tier is not None and isinstance(tier, int) and tier > args.tier:
             continue
@@ -286,8 +299,7 @@ def cmd_search(args) -> int:
         print(f"no skills match '{args.query}'. Try `rekit caps` for the capability index.")
         return 1
     for sc, why, s in hits:
-        is_dyn = (s.get("safety") or {}).get("executes_input") == "full"
-        print(f"{s.get('id', ''):20} {'⚡ ' if is_dyn else ''}{s.get('description', '')}")
+        print(f"{s.get('id', ''):20} {_marker(s)}{s.get('description', '')}")
         print(f"{'':20} · match: {', '.join(why)}  (score {sc})")
     print(f"\n{len(hits)} result(s). `rekit info <id>` for details · `rekit run <id> …` to use.")
     return 0
@@ -320,6 +332,8 @@ def build_parser() -> argparse.ArgumentParser:
     srch.add_argument("--tier", type=int, help="only skills at or below this safety tier")
     srch.add_argument("--dynamic", action="store_true", help="only DYNAMIC skills (execute the target)")
     srch.add_argument("--static", action="store_true", help="exclude DYNAMIC skills")
+    srch.add_argument("--construct", action="store_true", help="only CONSTRUCT skills (produce artifacts)")
+    srch.add_argument("--analyze", action="store_true", help="exclude CONSTRUCT skills")
     srch.add_argument("--limit", type=int, default=12, help="max results (default 12)")
     srch.add_argument("--json", action="store_true")
     srch.set_defaults(func=cmd_search)

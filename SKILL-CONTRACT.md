@@ -22,6 +22,7 @@ Nothing else is registered anywhere — dropping a folder in is registration.
   "version": "0.1.0",
   "description": "One line: what it does and, crucially, that it does NOT execute the input.",
   "capabilities": ["deobfuscate-js", "unpack-js-bundle"],
+  "kind": "analyze",
 
   "prerequisites": [
     {
@@ -33,7 +34,7 @@ Nothing else is registered anywhere — dropping a folder in is registration.
   ],
 
   "safety": {
-    "executes_input": false,
+    "executes_input": "no",
     "network": "none",
     "tier": 1,
     "notes": "static AST transforms only; run with no network, writes only to the out dir"
@@ -59,6 +60,13 @@ Nothing else is registered anywhere — dropping a folder in is registration.
 - **`capabilities`** — stable capability strings a caller matches against (e.g.
   `unmask-re` maps `deobfuscate-js` onto its `deobfuscate` work item). Keep them
   boring and reusable across skills.
+- **`kind`** *(optional, default `"analyze"`)* — the axis of what the skill *does to the
+  world*. `"analyze"` skills READ/observe a target (the vast majority). `"construct"`
+  skills PRODUCE an artifact (compile a PoC, assemble shellcode, build a stub) — their
+  input is usually your own trusted source, not a sample, so they sit low on the risk
+  scale. Orthogonal to `safety`: `kind` is read-vs-write, `executes_input` is
+  runs-the-target-or-not. `list`/`search` mark construct skills 🔨 (dynamic wins the glyph
+  if a skill is somehow both); `search --construct` / `--analyze` filter on it.
 - **`prerequisites`** — external tools the skill needs on `PATH`. `check` is run
   verbatim; the first `\d+(\.\d+)*` in its output is compared to `min_version`.
   Prereqs are the *only* thing that can make a skill unavailable.
