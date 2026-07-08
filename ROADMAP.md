@@ -37,9 +37,11 @@ useful next.
 | `frida-trace` ⚡ | DYNAMIC: Frida-hook network/exec/file/crypto API calls | frida-trace (BYO) · python3 |
 | `cc-build` 🔨 | CONSTRUCT: compile C/C++/ObjC → native (exe/.o/.s/IR), cross-compile | clang/cc/gcc (BYO) · python3 |
 | `asm-assemble` 🔨 | CONSTRUCT: assemble asm → bytes (hex/C-array/raw) — x64/x86/arm64/arm | clang/LLVM (BYO) · python3 |
+| `shellcode-stub` 🔨 | CONSTRUCT: wrap raw shellcode → runnable native PoC (mmap/mprotect loader) | clang (BYO) · python3 |
 
-**29 skills**, two axes. **`kind`** = *what it does to the world*: **analyze** (read a
-target — 27) vs **construct** 🔨 (produce an artifact — 2: `cc-build`, `asm-assemble`).
+**30 skills**, two axes. **`kind`** = *what it does to the world*: **analyze** (read a
+target — 27) vs **construct** 🔨 (produce an artifact — 3: `cc-build`, `asm-assemble`,
+`shellcode-stub`).
 **`safety.executes_input`** = *does it run the target*: 21 **static** (read-only) + 2
 **contained** (`emulate-code` = Unicorn raw bytes/no OS; `qiling-emulate` = Qiling full
 binary w/ emulated OS syscalls vs a BYO rootfs — both run on an emulated CPU not the
@@ -55,7 +57,9 @@ first-class) + **construct tier** (🔨, build PoCs/shellcode/stubs).
 The **emulation/execution family** is a three-rung ladder: `emulate-code` (no OS) →
 `qiling-emulate` (emulated OS, contained, cross-arch/cross-OS) → `exec-observe`/tracers
 (native host execution, consent-gated). The **construct → analyze loops** close it:
-`asm-assemble → emulate-code` (write shellcode, run it contained) and `cc-build → any
+`asm-assemble → emulate-code` (write shellcode, run it contained),
+`asm-assemble → shellcode-stub → exec-observe/qiling-emulate` (wrap shellcode into a
+runnable PoC — verified: a `mov w0,#42; ret` PoC exits 42), and `cc-build → any
 decompiler / --emit asm|ir` (build a PoC, inspect the codegen).
 
 Dispatcher commands: `list · search · doctor · info · run · install · caps`.
