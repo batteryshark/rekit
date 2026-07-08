@@ -37,7 +37,7 @@ useful next.
 | `frida-trace` ⚡ | DYNAMIC: Frida-hook network/exec/file/crypto API calls | frida-trace (BYO) · python3 |
 | `cc-build` 🔨 | CONSTRUCT: compile C/C++/ObjC → native (exe/.o/.s/IR), cross-compile | clang/cc/gcc (BYO) · python3 |
 | `asm-assemble` 🔨 | CONSTRUCT: assemble asm → bytes (hex/C-array/raw) — x64/x86/arm64/arm | clang/LLVM (BYO) · python3 |
-| `shellcode-stub` 🔨 | CONSTRUCT: wrap raw shellcode → runnable native PoC (mmap/mprotect loader) | clang (BYO) · python3 |
+| `shellcode-stub` 🔨 | CONSTRUCT: wrap raw shellcode → runnable native PoC (`--os posix` mmap/mprotect \| `--os windows` VirtualAlloc+ExitProcess) | clang (BYO) · python3 |
 
 **30 skills**, two axes. **`kind`** = *what it does to the world*: **analyze** (read a
 target — 27) vs **construct** 🔨 (produce an artifact — 3: `cc-build`, `asm-assemble`,
@@ -60,7 +60,11 @@ The **emulation/execution family** is a three-rung ladder: `emulate-code` (no OS
 `asm-assemble → emulate-code` (write shellcode, run it contained),
 `asm-assemble → shellcode-stub → exec-observe/qiling-emulate` (wrap shellcode into a
 runnable PoC — verified: a `mov w0,#42; ret` PoC exits 42), and `cc-build → any
-decompiler / --emit asm|ir` (build a PoC, inspect the codegen).
+decompiler / --emit asm|ir` (build a PoC, inspect the codegen). The cross-**OS** construct
+loop is now closed too: `shellcode-stub --os windows` emits a VirtualAlloc+ExitProcess
+loader (default target `x86_64-w64-mingw32`) — its source generates without a toolchain,
+the `.exe` needs a mingw-w64 sysroot (honest failure + install hint when absent), and the
+resulting PE detonates under `qiling-emulate --rootfs x8664_windows`.
 
 Dispatcher commands: `list · search · doctor · info · run · install · caps`.
 **`rekit search <query>`** (keyword/capability, `--dynamic|--static|--tier|--capability`,
@@ -75,6 +79,10 @@ strace-or-dtruss/tcpdump/frida-trace) degrade honestly via the prereq gate.
 > works wherever clang does.
 **Chains verified end-to-end:** Electron (unpack→asar→js-deobfuscate/sourcemap→
 js-covert-scan) and Python (pyinstaller-extract→pyc-decompile→py-covert-scan).
+Construct→analyze: `asm-assemble → shellcode-stub → exec-observe` (native, arm64 PoC exits
+42) and `asm-assemble → shellcode-stub --os windows` (Windows loader source verified; PE
+build pending a mingw-w64 sysroot, then detonates under `qiling-emulate --rootfs
+x8664_windows`).
 
 ## Queued — remaining
 
