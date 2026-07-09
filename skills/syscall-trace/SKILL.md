@@ -1,3 +1,8 @@
+---
+name: syscall-trace
+description: "DYNAMIC: run a target under a syscall tracer (strace on Linux, dtruss on macOS) and summarize its behaviour — files opened, network connects, processes exec'd, and a syscall histogram. EXECUTES the target; consent-gated. dtruss needs root + a permissive SIP."
+---
+
 # Syscall Tracer
 
 **⚡ Dynamic tier — runs the target.** Run only where you don't mind the risk.

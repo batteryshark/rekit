@@ -1,3 +1,8 @@
+---
+name: binwalk-carve
+description: "Carve and recursively extract embedded files from a firmware image or blob (filesystems, bootloaders, nested archives) with binwalk. The heavy sibling of bin-triage's embedded-signature preview. Prereq-gated on binwalk; honest blind spot with an install hint when absent."
+---
+
 # Firmware Carver (binwalk)
 
 Carve and recursively extract embedded files from a firmware image or blob with
