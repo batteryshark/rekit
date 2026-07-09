@@ -33,7 +33,7 @@ import unicodedata
 _EXTS = {".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx", ".mts", ".cts"}
 _SKIP_DIRS = {"node_modules", ".git", ".hg", "dist", "build", ".venv", "__pycache__",
               "vendor", ".next", ".turbo"}
-_MAX_BYTES = 5 * 1024 * 1024
+_MAX_BYTES = 32 * 1024 * 1024
 _MAX_FINDINGS = 1000
 _MAX_FILES = 4000
 
@@ -206,16 +206,21 @@ def main(argv: list[str]) -> int:
 
     findings: list = []
     files_scanned = 0
-    skipped_large = []
+    truncated_large = []
     for path in iter_files(args.input):
         try:
-            if os.path.getsize(path) > args.max_bytes:
-                skipped_large.append(path)
-                continue
             with open(path, "rb") as fh:
-                text = fh.read().decode("utf-8", errors="replace")
+                raw = fh.read(args.max_bytes + 1)
         except OSError:
             continue
+        if len(raw) > args.max_bytes:
+            # A minified single-file executable / carved bundle is often ONE giant
+            # line many MB long — scan its first max_bytes rather than skip it whole.
+            # Skipping blinded us to exactly the case this scanner exists for: the
+            # payload (env-gate, hidden string) lives inside a 15MB+ bundle.
+            truncated_large.append(path)
+            raw = raw[:args.max_bytes]
+        text = raw.decode("utf-8", errors="replace")
         files_scanned += 1
         scan_text(text, path, findings)
         if len(findings) >= _MAX_FINDINGS:
@@ -229,7 +234,7 @@ def main(argv: list[str]) -> int:
         "ok": True, "root": os.path.abspath(args.input), "filesScanned": files_scanned,
         "findingCount": len(findings), "summary": summary, "families": families,
         "assessment": assess(findings), "findings": findings,
-        "skippedLarge": skipped_large,
+        "truncatedLarge": truncated_large,
     }
 
     if args.format == "json":
