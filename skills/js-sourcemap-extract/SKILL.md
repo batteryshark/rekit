@@ -1,3 +1,8 @@
+---
+name: js-sourcemap-extract
+description: "Recover the original, un-minified sources from a JavaScript source map's sourcesContent — turning a bundled/minified .js back into a readable file tree. Accepts a .map (JSON) or a .js that references one via //# sourceMappingURL (inline data: map or sibling .map). Pure stdlib, read-only; path-traversal guarded (strips webpack:// and ../)."
+---
+
 # JS Source-Map Extractor
 
 Recover the **original** source from a JavaScript **source map** — the fastest way to

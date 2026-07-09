@@ -1,3 +1,8 @@
+---
+name: ghidra-decompile
+description: "Decompile a native binary (ELF/PE/Mach-O) with full Ghidra headless analysis — higher fidelity than native-decompile (rizin pdg) for hard targets. Runs analyzeHeadless with a bundled Ghidra script that decompiles every function to one C file. Static: analyses + decompiles, never runs the binary. Prereq-gated on Ghidra's analyzeHeadless (needs a JRE 17+)."
+---
+
 # Ghidra Decompiler (headless)
 
 Decompile a native binary (ELF/PE/Mach-O) with **full Ghidra** headless analysis.

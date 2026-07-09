@@ -1,3 +1,8 @@
+---
+name: net-capture
+description: "DYNAMIC: capture a target's network traffic to a pcap while it runs (tcpdump), then summarize packets, talking-to IPs, and DNS queries. Point --iface at a sinkholed interface for safer detonation. EXECUTES the target and captures on an interface (usually needs root); consent-gated."
+---
+
 # Network Capture
 
 **⚡ Dynamic tier — runs the target and sniffs the wire.** Run only where you don't

@@ -1,3 +1,8 @@
+---
+name: native-decompile
+description: "Decompile a native binary (ELF/PE/Mach-O) to C-like pseudocode with rizin's built-in Ghidra decompiler (pdg over all functions). Static: analyses and decompiles, never runs the target. Prereq-gated on rizin/r2; honest blind spot with an install hint when absent. Pair with elf/pe/macho-analyze."
+---
+
 # Native Decompiler
 
 Decompile a native binary (ELF / PE / Mach-O) to C-like pseudocode with

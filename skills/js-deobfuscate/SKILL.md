@@ -1,3 +1,8 @@
+---
+name: js-deobfuscate
+description: "Deobfuscate and unpack obfuscated JavaScript (webcrack): reverses string arrays, folds constants, deflattens control flow, unminifies, and splits webpack/browserify bundles. Encoded string arrays are decoded by running the decoder inside an isolated-vm sandbox — not the whole program."
+---
+
 # JavaScript Deobfuscator
 
 Statically deobfuscate and unpack obfuscated JavaScript using
@@ -36,7 +41,7 @@ sandboxed: no network, writes only to the output dir, with a timeout.
 rekit run js-deobfuscate ./obfuscated.js ./out
 
 # or directly
-node skills/js-deobfuscate/bin/webcrack.mjs ./obfuscated.js ./out
+node skills/js-deobfuscate/runtime/run.mjs ./obfuscated.js ./out
 ```
 
 Writes `out/deobfuscated.js` (the single-file result) and, for detected bundles,

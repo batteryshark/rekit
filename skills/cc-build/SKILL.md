@@ -1,3 +1,8 @@
+---
+name: cc-build
+description: "CONSTRUCT: compile C/C++/ObjC source into a native artifact (exe / .o / .s / LLVM IR) with clang (falls back to cc/gcc). For building PoCs, test harnesses, stubs, and shared libs rekit needs. Cross-compiles via --target/--arch. Compiles only — does NOT run the result (feed the output to exec-observe/emulate-code yourself). BYO C compiler."
+---
+
 # C/C++ Compiler (clang)
 
 **🔨 Construct tier — this skill *produces* an artifact, it doesn't read a sample.**
