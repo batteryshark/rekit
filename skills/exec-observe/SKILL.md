@@ -1,3 +1,8 @@
+---
+name: exec-observe
+description: "DYNAMIC: run a target in a fresh working directory with a timeout and capture its behavior — exit code, stdout/stderr, wall-clock time, and files it creates. The seed of the dynamic tier (richer skills add syscall/network tracing). EXECUTES the target — run only where you don't mind the risk."
+---
+
 # Execute & Observe (dynamic)
 
 **⚡ Dynamic tier — this RUNS the target.** Run it only where you don't mind the risk:

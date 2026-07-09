@@ -1,3 +1,8 @@
+---
+name: pyc-decompile
+description: "Decompile Python bytecode (.pyc / compiled code objects) back to source with decompyle3. Best for CPython 3.7-3.8 bytecode (e.g. PyInstaller-extracted payloads); reports honestly when the bytecode version is out of range. Static: reads bytecode, never runs it."
+---
+
 # Python Bytecode Decompiler
 
 Decompile Python bytecode (`.pyc` / compiled code objects) back to source with

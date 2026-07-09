@@ -4,8 +4,9 @@ A library of **self-contained analysis skills** that any agent (or tool) can cal
 built for reverse-engineering and malicious-code triage, but coupled to nothing.
 
 Each skill is a folder that carries everything it needs: a bundled tool or pure-stdlib
-script under `runtime/`, a machine-readable `skill.json`, and an agent-facing
-`SKILL.md`. A skill declares its external prerequisites and its safety properties
+runner under `scripts/`, and an agent-facing `SKILL.md` (`name` + `description`
+frontmatter). The machine manifest for every skill lives in one central
+[`registry.json`](registry.json), keyed by id. A skill declares its external prerequisites and its safety properties
 (does it execute the input? touch the network?). If a prerequisite is missing, the
 caller is told exactly what to install — or it skips the skill and records the target
 as *not analysed*. Nothing is ever silently skipped.
@@ -15,14 +16,16 @@ contract is generic: a skill is a directory + a manifest + a documented invocati
 
 ```bash
 bin/rekit list                    # what skills exist
-bin/rekit doctor                  # which prerequisites are present  (X/Y ready)
+bin/rekit doctor                  # rekit's own reqs (base/build/recommended) + which skills are ready  (X/Y)
 bin/rekit caps                    # capability → skills index
 bin/rekit install [--<id>]        # vendor skill runtimes (runs each build.sh)
 bin/rekit run <id> <args...>      # run one (checks prereqs first)
+bin/rekit setup [--tier all]      # print install commands for missing base/build/recommended tools (never runs them)
 bin/rekit info <id>               # manifest + SKILL.md
+bin/rekit mcp [--allow-dynamic]   # serve the whole catalog over MCP (one tool per skill; export only)
 ```
 
-## The skills (21)
+## The skills (31)
 
 **Source detection** (pure stdlib, read-only, emit atoms)
 | Skill | What | Prereq |
@@ -42,6 +45,7 @@ bin/rekit info <id>               # manifest + SKILL.md
 | `macho-analyze` | Mach-O (macholib) | python3 |
 | `dotnet-analyze` | .NET/CLR + P/Invoke surface (dnfile) | python3 |
 | `hex-view` | hex dump + sha256 | python3 |
+| `r2-recon` | cross-format native recon (ELF/PE/Mach-O/DEX…) — r2 headless: info/sections+entropy/imports/funcs/strings → `BINARY.*` atoms | r2 (BYO) |
 
 **Deobfuscate / decompile**
 | Skill | What | Prereq |
@@ -61,19 +65,50 @@ bin/rekit info <id>               # manifest + SKILL.md
 | `pyinstaller-extract` | carve `.pyc` out of PyInstaller executables | python3 |
 | `binwalk-carve` | carve/extract embedded files from firmware images | binwalk (BYO) |
 
+**Dynamic** ⚡ (run the target to observe behavior; consent-gated via `rekit run --allow-dynamic`)
+| Skill | What | Prereq |
+|---|---|---|
+| `exec-observe` | run target, capture exit/stdout/stderr/files-created/timing | python3 |
+| `emulate-code` | contained: run raw shellcode/blob on a virtual CPU (no OS) | unicorn · python3 |
+| `qiling-emulate` | contained: emulate a FULL binary (PE/ELF/Mach-O) w/ emulated OS syscalls | qiling + BYO rootfs · python3 |
+| `syscall-trace` ⚡ | kernel-syscall trace (strace/dtruss) → histogram + files/net/exec | strace/dtruss (BYO) · python3 |
+| `net-capture` ⚡ | run target + sniff wire (tcpdump) → talkers/DNS + pcap | tcpdump (BYO, root) · python3 |
+| `frida-trace` ⚡ | Frida-hook network/exec/file/crypto API calls | frida-trace (BYO) · python3 |
+
+**Construct** 🔨 (produce an artifact; never run it)
+| Skill | What | Prereq |
+|---|---|---|
+| `cc-build` | compile C/C++/ObjC → native (exe/.o/.s/IR), cross-compile | clang/cc/gcc (BYO) · python3 |
+| `asm-assemble` | assemble asm → bytes (hex/C-array/raw) — x64/x86/arm64/arm | clang/LLVM (BYO) · python3 |
+| `shellcode-stub` | wrap raw shellcode → runnable native PoC (`--os posix` mmap/mprotect \| `--os windows` VirtualAlloc+ExitProcess) | clang (BYO) · python3 |
+
 ### Chains
 
 - **Electron:** `unpack` (zip → asar) → `js-deobfuscate` / `js-sourcemap-extract` → `js-covert-scan`
 - **Python:** `pyinstaller-extract` → `pyc-decompile` → `py-covert-scan`
 - **Binary:** `bin-triage` → `pe`/`elf`/`macho`/`dotnet-analyze` → the matching decompiler
+- **Construct → analyze:** `asm-assemble` → `shellcode-stub` → `exec-observe` (native) or `qiling-emulate` (cross-arch/cross-OS); `cc-build` → any decompiler (or `--emit asm|ir`)
 
 ## Getting started
 
+rekit needs a baseline to run at all: **python3 ≥ 3.8** and **bash** (the dispatcher is
+pure stdlib). Vendoring skill runtimes (`rekit install`) additionally needs **npm** (one
+skill) and **uv** (seven skills). A fresh analysis box also benefits from `rg`, `git`,
+`curl`, `jq`, `file`. These tiers live in [`requirements.json`](requirements.json) —
+**distinct from per-skill prerequisites** (which live in `registry.json`).
+
 ```bash
-bin/rekit install          # vendor runtimes for the skills that need it
-bin/rekit doctor           # confirm what's ready; install BYO tools for the rest
+bin/rekit setup                   # print install commands for any missing BASE tools (never runs them)
+bin/rekit setup --tier all        # base + build + recommended
+bin/rekit install                 # vendor runtimes for the skills that need it
+bin/rekit doctor                  # confirm what's ready; install BYO tools for the rest
 bin/rekit run bin-triage ./unknown.bin
 ```
+
+`rekit setup` **prints** platform-appropriate install commands (auto-detects macOS/Linux;
+on Windows, run them inside WSL2) — it never runs a package manager itself. Pipe it if you
+want: `rekit setup --tier all | bash`. See [`docs/PLATFORMS.md`](docs/PLATFORMS.md) for the
+tier table and the platform/WSL2 stance.
 
 ## Design rules
 
@@ -85,9 +120,10 @@ bin/rekit run bin-triage ./unknown.bin
   install hint; the caller asks the human or records a coverage blind spot.
 - **Safety is declared.** Every skill states whether it executes the input and whether
   it needs network. Most are read-only and offline.
-- **Three packaging patterns:** pure-stdlib (no runtime), vendored `node_modules`
-  (native ok), vendored `pip --target site` (pure-python). Native-ABI-locked python
-  deps are avoided; such tools go through an external CLI instead.
+- **Three packaging patterns:** pure-stdlib (no vendored deps), vendored
+  `scripts/node_modules` (native ok), vendored `pip --target scripts/site`
+  (pure-python). Native-ABI-locked python deps are avoided; such tools go through an
+  external CLI instead.
 
 See `SKILL-CONTRACT.md` for the manifest spec and `ROADMAP.md` for what's next.
 

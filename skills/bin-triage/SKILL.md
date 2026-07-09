@@ -1,3 +1,8 @@
+---
+name: bin-triage
+description: "Fast format-agnostic first look at any file, pure-stdlib: identify format from magic bytes (and route to the right analyzer), chunked Shannon entropy (packed/encrypted regions), string extraction with interesting-string surfacing (URLs/IPs/onion/shell/paths/exec-APIs), and an embedded-signature scan (mini-binwalk: ZIP/gzip/ELF/PDF at non-zero offsets). When given an output dir, also CARVES large embedded readable-source regions (the JS/text a single-file executable — Bun/Deno/pkg/nexe/SEA — appends after its native runtime) for rescanning. Emits BINARY.* atoms. Read-only — never executes the input."
+---
+
 # Binary Triage (format-agnostic)
 
 A fast first look at *any* file, with no external tools. Pure-Python stdlib,

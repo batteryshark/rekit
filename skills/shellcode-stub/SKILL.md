@@ -1,3 +1,8 @@
+---
+name: shellcode-stub
+description: "CONSTRUCT: wrap a raw shellcode blob into a runnable native PoC — a tiny C loader compiled with clang, whose exit code is the shellcode's return value. --os picks the loader: posix (mmap RW → memcpy → mprotect RX → call, default) or windows (VirtualAlloc RWX → memcpy → call → ExitProcess). --emit c dumps just the loader source. The last link in the write chain: asm-assemble → shellcode-stub → exec-observe (native) or qiling-emulate (cross-arch/cross-OS). Builds the exe; does NOT run it."
+---
+
 # Shellcode Stub Wrapper
 
 **🔨 Construct tier — builds a runnable PoC around shellcode; does not run it.**
