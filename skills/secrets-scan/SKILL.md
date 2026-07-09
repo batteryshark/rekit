@@ -1,3 +1,8 @@
+---
+name: secrets-scan
+description: "Find leaked credentials in files: high-signal provider patterns (AWS/GitHub/Slack/Google/Stripe/OpenAI/SendGrid/Twilio/JWT/PEM private keys) plus a generic high-entropy secret-assignment catch with placeholder filtering. Matches are REDACTED in output — never echoes a full secret. Pure stdlib, read-only."
+---
+
 # Secrets Scanner
 
 Find leaked credentials — API keys, tokens, private keys — in a file or a whole

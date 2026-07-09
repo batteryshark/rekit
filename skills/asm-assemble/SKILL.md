@@ -1,3 +1,8 @@
+---
+name: asm-assemble
+description: "CONSTRUCT: assemble asm text (a file or --code) into machine-code bytes with the LLVM/clang integrated assembler — x64/x86/arm64/arm — emitted as hex, a C array, a raw blob, or JSON. Backed by clang (no fragile native python binding), so it works cross-arch anywhere clang does. The write-side partner of emulate-code: assemble a snippet, then run it on the virtual CPU. Transforms text→bytes; runs nothing."
+---
+
 # Assembler (LLVM/clang)
 
 **🔨 Construct tier — produces bytes, runs nothing.**

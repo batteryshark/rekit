@@ -1,3 +1,8 @@
+---
+name: ioc-extract
+description: "Pull indicators of compromise from a file or directory (URLs, IPs, domains, emails, md5/sha1/sha256 hashes, .onion, CVEs, BTC/ETH addresses, registry keys) — from text and from strings mined out of binaries. Every value is DEFANGED in output (hxxp://evil[.]com, 1[.]2[.]3[.]4) so a report can't ship a live IOC. Pure stdlib, read-only; never resolves or fetches anything."
+---
+
 # IOC Extractor
 
 Pull **indicators of compromise** out of a file or directory — and defang them so the

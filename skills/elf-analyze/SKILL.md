@@ -1,3 +1,8 @@
+---
+name: elf-analyze
+description: "Static triage of ELF binaries (Linux/BSD) with pyelftools: class/arch/type, sections + per-section entropy (packing), needed libraries, RPATH/RUNPATH, imported symbols classified by capability (network/exec/inject/load/crypto), and hardening (PIE/NX/RELRO). Emits BINARY.* atoms. Reads structure only — never runs the binary."
+---
+
 # ELF Binary Analyzer
 
 Static triage of ELF binaries (Linux/BSD executables, shared objects, relocatable

@@ -1,0 +1,3223 @@
+{
+  "asm-assemble": {
+    "name": "Assembler (LLVM/clang)",
+    "description": "CONSTRUCT: assemble asm text (a file or --code) into machine-code bytes with the LLVM/clang integrated assembler — x64/x86/arm64/arm — emitted as hex, a C array, a raw blob, or JSON. Backed by clang (no fragile native python binding), so it works cross-arch anywhere clang does. The write-side partner of emulate-code: assemble a snippet, then run it on the virtual CPU. Transforms text→bytes; runs nothing.",
+    "version": "0.2.0",
+    "kind": "construct",
+    "capabilities": [
+      "assemble",
+      "shellcode",
+      "construct"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ for the runner."
+      },
+      {
+        "tool": "clang",
+        "check": [
+          "clang",
+          "--version"
+        ],
+        "install_hint": "Install clang/LLVM (macOS: xcode-select --install; Linux: apt/dnf install clang)."
+      },
+      {
+        "tool": "objtool",
+        "check": [
+          "sh",
+          "-c",
+          "command -v otool || command -v objcopy || command -v llvm-objcopy || command -v objdump"
+        ],
+        "install_hint": "Need a section extractor: otool (macOS Xcode CLT) or binutils/LLVM objcopy/objdump (Linux)."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 1,
+      "notes": "CONSTRUCT skill — assembles text into bytes with the LLVM assembler; it never executes anything. To run the bytes it produces, feed them to emulate-code (contained) or embed them in a stub via cc-build."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "source",
+          "type": "file",
+          "required": false,
+          "desc": "file of asm text (or use --code)"
+        },
+        {
+          "name": "--code",
+          "type": "str",
+          "required": false,
+          "desc": "inline asm, e.g. 'mov rax, 1; ret' (';' splits statements)"
+        },
+        {
+          "name": "--arch",
+          "type": "enum",
+          "required": false,
+          "desc": "x64 | x86 | arm64 | arm (default x64)",
+          "choices": [
+            "x64",
+            "x86",
+            "arm64",
+            "arm"
+          ]
+        },
+        {
+          "name": "--att",
+          "type": "flag",
+          "required": false,
+          "desc": "x86: use AT&T/GAS syntax (default Intel)"
+        },
+        {
+          "name": "--out",
+          "type": "str",
+          "required": false,
+          "desc": "write the raw bytes to this path"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "hex | c | raw | json (default hex)",
+          "choices": [
+            "hex",
+            "c",
+            "raw",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "hex|c|raw|json",
+        "fields": {
+          "ok": "bool",
+          "arch": "string",
+          "triple": "string",
+          "length": "int",
+          "hex": "string",
+          "out": "string?"
+        }
+      }
+    },
+    "payload": {
+      "tool": "clang",
+      "source": "https://clang.llvm.org",
+      "vendored": null,
+      "runner": "scripts/run.py",
+      "note": "BYO clang (+ a section extractor: otool on macOS, objcopy/objdump on Linux). Deliberately NOT keystone — keystone-engine ships no arm64-mac wheel, the same native-packaging trap as py7zr; the LLVM assembler cc-build already relies on covers x64/x86/arm64/arm cleanly. Closes rekit's shellcode loop: asm-assemble --out sc.bin → emulate-code sc.bin. `--format c` drops a ready-to-paste C array for a cc-build stub."
+    }
+  },
+  "bin-triage": {
+    "name": "Binary Triage (format-agnostic)",
+    "description": "Fast format-agnostic first look at any file, pure-stdlib: identify format from magic bytes (and route to the right analyzer), chunked Shannon entropy (packed/encrypted regions), string extraction with interesting-string surfacing (URLs/IPs/onion/shell/paths/exec-APIs), and an embedded-signature scan (mini-binwalk: ZIP/gzip/ELF/PDF at non-zero offsets). When given an output dir, also CARVES large embedded readable-source regions (the JS/text a single-file executable — Bun/Deno/pkg/nexe/SEA — appends after its native runtime) for rescanning. Emits BINARY.* atoms. Read-only — never executes the input.",
+    "version": "0.1.0",
+    "capabilities": [
+      "triage-binary",
+      "identify-format",
+      "extract-strings",
+      "detect-embedded",
+      "carve-embedded",
+      "emit-atoms"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ — pure stdlib, no other dependency."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 0,
+      "notes": "Read-only. Reads bytes and computes magic/entropy/strings/signatures. Never parses as code or executes the input."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/triage.py"
+      ],
+      "args": [
+        {
+          "name": "input",
+          "type": "file",
+          "required": true,
+          "desc": "any file to triage"
+        },
+        {
+          "name": "outdir",
+          "type": "dir",
+          "required": false,
+          "desc": "if given, carve embedded readable-source regions here for rescanning"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        },
+        {
+          "name": "--max-bytes",
+          "type": "int",
+          "required": false,
+          "desc": "atom-analysis read cap (default 64 MiB; carving always scans the whole file)"
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "size": "int",
+          "formats": "array",
+          "entropyFirstMiB": "number",
+          "interestingStrings": "object",
+          "embeddedSignatures": "array",
+          "atoms": "array",
+          "carved": "array",
+          "outputDir": "string"
+        }
+      }
+    },
+    "payload": {
+      "tool": "(builtin)",
+      "vendored": null,
+      "runner": "scripts/triage.py",
+      "pure_stdlib": true,
+      "note": "Zero-dependency first-look. Routes to the format-specific analyzers (pe/elf/macho/dotnet-analyze) or unpack. The embedded-signature scan is a lightweight mini-binwalk; use binwalk-carve for real extraction."
+    }
+  },
+  "binwalk-carve": {
+    "name": "Firmware Carver (binwalk)",
+    "description": "Carve and recursively extract embedded files from a firmware image or blob (filesystems, bootloaders, nested archives) with binwalk. The heavy sibling of bin-triage's embedded-signature preview. Prereq-gated on binwalk; honest blind spot with an install hint when absent.",
+    "version": "0.1.0",
+    "capabilities": [
+      "carve-firmware",
+      "extract-embedded",
+      "unpack-firmware"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ for the runner."
+      },
+      {
+        "tool": "binwalk",
+        "check": [
+          "binwalk",
+          "--help"
+        ],
+        "install_hint": "Install binwalk v3 (https://github.com/ReFirmLabs/binwalk) — a single Rust binary; some extractors also want unsquashfs/jefferson/sasquatch on PATH."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 1,
+      "notes": "Trusted carver over untrusted firmware. binwalk scans signatures and runs extractors (decompress/unpack) — it does not run the firmware. Extractors are numerous; run this sandboxed (no network, writable output dir only) with the timeout."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "input",
+          "type": "file",
+          "required": true,
+          "desc": "firmware image / blob"
+        },
+        {
+          "name": "outdir",
+          "type": "dir",
+          "required": true,
+          "desc": "output dir for the carved tree"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "tool": "string",
+          "extractedTo": "string",
+          "filesExtracted": "int",
+          "exitCode": "int",
+          "scan": "string"
+        }
+      }
+    },
+    "payload": {
+      "tool": "binwalk",
+      "source": "https://github.com/ReFirmLabs/binwalk",
+      "vendored": null,
+      "runner": "scripts/run.py",
+      "note": "BYO tool on PATH (binwalk pulls a whole extractor ecosystem; not bundled). Runs `binwalk -e` with cwd=outdir so the carved tree lands there on v2 or v3. Dispatcher prereq gate = honest degradation. Feeds the *-analyze / covert-scan skills on the revealed tree."
+    }
+  },
+  "cc-build": {
+    "name": "C/C++ Compiler (clang)",
+    "description": "CONSTRUCT: compile C/C++/ObjC source into a native artifact (exe / .o / .s / LLVM IR) with clang (falls back to cc/gcc). For building PoCs, test harnesses, stubs, and shared libs rekit needs. Cross-compiles via --target/--arch. Compiles only — does NOT run the result (feed the output to exec-observe/emulate-code yourself). BYO C compiler.",
+    "version": "0.1.0",
+    "kind": "construct",
+    "capabilities": [
+      "compile",
+      "build-native",
+      "construct"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ for the runner."
+      },
+      {
+        "tool": "cc",
+        "check": [
+          "sh",
+          "-c",
+          "command -v clang || command -v cc || command -v gcc"
+        ],
+        "install_hint": "Install a C compiler: clang (macOS: xcode-select --install; Linux: apt/dnf install clang or LLVM) or gcc."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 1,
+      "notes": "CONSTRUCT skill — produces a binary, never runs it. executes_input:no (the sample isn't executed). Caveat: compiling UNTRUSTED source still invokes a compiler (preprocessor/pragmas), a mild risk distinct from running a sample — hence tier 1 not 0. The typical input is your own PoC source (trusted). To run what it builds, hand the artifact to the dynamic tier explicitly."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "source",
+          "type": "file",
+          "required": true,
+          "desc": "source file(s) to compile"
+        },
+        {
+          "name": "--out",
+          "type": "str",
+          "required": false,
+          "desc": "output path (default derived from source + emit)"
+        },
+        {
+          "name": "--emit",
+          "type": "enum",
+          "required": false,
+          "desc": "exe | obj | asm | ir (default exe)",
+          "choices": [
+            "exe",
+            "obj",
+            "asm",
+            "ir"
+          ]
+        },
+        {
+          "name": "--std",
+          "type": "str",
+          "required": false,
+          "desc": "language standard, e.g. c11, c++20"
+        },
+        {
+          "name": "--opt",
+          "type": "str",
+          "required": false,
+          "desc": "optimization 0|1|2|3|s|z (default 2)"
+        },
+        {
+          "name": "--arch",
+          "type": "str",
+          "required": false,
+          "desc": "-arch (clang/darwin), e.g. x86_64, arm64"
+        },
+        {
+          "name": "--target",
+          "type": "str",
+          "required": false,
+          "desc": "cross-compile triple (clang -target)"
+        },
+        {
+          "name": "--shared",
+          "type": "flag",
+          "required": false,
+          "desc": "build a shared library"
+        },
+        {
+          "name": "--static",
+          "type": "flag",
+          "required": false,
+          "desc": "static-link (-static)"
+        },
+        {
+          "name": "--cflags",
+          "type": "str",
+          "required": false,
+          "desc": "extra flags passed verbatim (shell-split)"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "compiler": "string",
+          "emit": "string",
+          "out": "string|null",
+          "size": "int|null",
+          "returncode": "int",
+          "diagnostics": "string",
+          "argv": "array"
+        }
+      }
+    },
+    "payload": {
+      "tool": "clang",
+      "source": "https://clang.llvm.org",
+      "vendored": null,
+      "runner": "scripts/run.py",
+      "note": "BYO clang (or cc/gcc). Seed of the CONSTRUCT kind — rekit produces artifacts, not just reads them. Pairs the analyze loop in reverse: build a PoC → inspect it with any decompiler, or --emit asm/ir to see what the compiler generates. To emulate/run the output, pass it to emulate-code (shellcode/obj) or exec-observe (exe)."
+    }
+  },
+  "dex-dump": {
+    "name": "Android DEX Dumper",
+    "description": "Dump decrypted DEX files from a RUNNING Android app's memory via the vendored panda-dex-dumper (ptrace attach on a rooted device). Defeats class-loading packers: the real DEX only exists in memory after the packer decrypts it, so this reads it live. Does NOT execute a sample on the host — attaches to an app the operator already launched on a connected device. BYO rooted device + adb.",
+    "version": "0.1.0",
+    "capabilities": [
+      "dump-dex",
+      "unpack-android",
+      "memory-dump"
+    ],
+    "kind": "analyze",
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ for the runner."
+      },
+      {
+        "tool": "adb",
+        "check": [
+          "adb",
+          "version"
+        ],
+        "install_hint": "Install Android Platform Tools (adb): https://developer.android.com/tools/releases/platform-tools"
+      }
+    ],
+    "safety": {
+      "executes_input": "sandboxed",
+      "network": "none",
+      "tier": 2,
+      "notes": "Invasive but contained to a connected Android device — NOT host execution. panda-dex-dumper ptrace-attaches to an already-running app (the operator launched it) to read decrypted DEX from its memory. Requires a ROOTED device (ptrace). Pushes a vendored aarch64 binary to /data/local/tmp/, runs it on-device, pulls the dumped DEX, and cleans up. No host sample detonation; not behind the --allow-dynamic gate. The target app must be past its splash screen so the packer has decrypted the real DEX."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "package",
+          "type": "str",
+          "required": true,
+          "desc": "target package name (e.g. com.example.app), or 'auto' to detect the foreground app"
+        },
+        {
+          "name": "outdir",
+          "type": "dir",
+          "required": true,
+          "desc": "local output directory for pulled DEX files"
+        },
+        {
+          "name": "--device",
+          "type": "str",
+          "required": false,
+          "desc": "adb device serial (default: the single connected device)"
+        },
+        {
+          "name": "--keep-tool",
+          "type": "flag",
+          "required": false,
+          "desc": "leave panda-dex-dumper on the device after pulling (default: clean up)"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default json)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "json",
+        "fields": {
+          "ok": "bool",
+          "package": "string",
+          "pid": "int|null",
+          "dexFiles": "array",
+          "fileCount": "int",
+          "outputDir": "string",
+          "devicePath": "string",
+          "error": "string?"
+        }
+      }
+    },
+    "payload": {
+      "tool": "panda-dex-dumper",
+      "source": "https://github.com/panda3zy/panda-dex-dumper",
+      "vendored": "bin/panda-dex-dumper",
+      "runner": "scripts/run.py",
+      "arch": "aarch64 (device-side)",
+      "note": "Vendored aarch64 ELF — runs ON the Android device, pushed by the runner via adb. Defeats class-loading packers by dumping the DEX from memory after the packer decrypts it (not from the APK on disk). Prereq-gated on adb; device must be rooted for ptrace. Pair with the Android analyzers / de4dot-class deobfuscators on the pulled DEX tree."
+    }
+  },
+  "dotnet-analyze": {
+    "name": ".NET Assembly Analyzer",
+    "description": "Static triage of .NET / CLR managed assemblies (.dll/.exe) with dnfile: runtime version, assembly + referenced assemblies, type/method counts, IL-only vs mixed-mode, strong-name signing, unmanaged module refs, and the P/Invoke (DllImport) native-API surface classified by capability. Emits DOTNET.* atoms. Parses CLR metadata only — never loads or runs the assembly.",
+    "version": "0.1.0",
+    "capabilities": [
+      "analyze-dotnet",
+      "analyze-clr-assembly",
+      "binary-triage",
+      "emit-atoms"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+. dnfile is vendored (pure-python), so no network/install at analysis time. (No .NET runtime needed — this is static metadata parsing.)"
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 1,
+      "notes": "Static CLR-metadata parse (dnfile). Never loads the assembly into a runtime, JITs, or executes it."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/analyze.py"
+      ],
+      "args": [
+        {
+          "name": "input",
+          "type": "file",
+          "required": true,
+          "desc": "path to a .NET assembly (.dll/.exe)"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "isDotNet": "bool",
+          "runtime": "string",
+          "assemblyName": "string",
+          "referencedAssemblies": "array",
+          "pinvokes": "array",
+          "atoms": "array"
+        }
+      }
+    },
+    "payload": {
+      "tool": "dnfile",
+      "source": "https://github.com/malwarefrank/dnfile",
+      "vendored": "scripts/site",
+      "runner": "scripts/analyze.py",
+      "build": "scripts/build.sh",
+      "pure_python": true,
+      "note": "Vendored via `uv pip install --target scripts/site` (pure-python, portable; NO .NET runtime needed). Complements pe-analyze: a native PE routes there, a managed PE is analysed here. The P/Invoke surface is where pure-IL malware touches the OS."
+    }
+  },
+  "dotnet-decompile": {
+    "name": ".NET Decompiler",
+    "description": "Decompile a .NET / CLR assembly (IL) back to C# with the ilspycmd dotnet tool. Static: reads metadata + IL, never runs the assembly. Prereq-gated on ilspycmd (needs the .NET runtime); honest blind spot with an install hint when absent. Pair with dotnet-analyze for the P/Invoke surface.",
+    "version": "0.1.0",
+    "capabilities": [
+      "decompile-dotnet",
+      "decompile-il-to-csharp"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ for the runner."
+      },
+      {
+        "tool": "ilspycmd",
+        "check": [
+          "ilspycmd",
+          "--version"
+        ],
+        "install_hint": "dotnet tool install -g ilspycmd  (needs the .NET SDK/runtime)"
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 1,
+      "notes": "Trusted decompiler (ilspycmd) over an untrusted assembly. Reads IL/metadata and emits C#; never loads the assembly into a CLR or runs it. Timeout-bounded."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "input",
+          "type": "file",
+          "required": true,
+          "desc": ".NET assembly (.dll/.exe)"
+        },
+        {
+          "name": "outdir",
+          "type": "dir",
+          "required": true,
+          "desc": "output dir for decompiled C#"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "tool": "string",
+          "outputDir": "string",
+          "filesWritten": "int",
+          "exitCode": "int"
+        }
+      }
+    },
+    "payload": {
+      "tool": "ilspycmd",
+      "source": "https://github.com/icsharpcode/ILSpy",
+      "vendored": null,
+      "runner": "scripts/run.py",
+      "note": "BYO tool on PATH (needs the .NET runtime, not bundled). The runner invokes ilspycmd; the dispatcher prereq gate gives honest degradation. Complements dotnet-analyze (static triage → this for full C#)."
+    }
+  },
+  "elf-analyze": {
+    "name": "ELF Binary Analyzer",
+    "description": "Static triage of ELF binaries (Linux/BSD) with pyelftools: class/arch/type, sections + per-section entropy (packing), needed libraries, RPATH/RUNPATH, imported symbols classified by capability (network/exec/inject/load/crypto), and hardening (PIE/NX/RELRO). Emits BINARY.* atoms. Reads structure only — never runs the binary.",
+    "version": "0.1.0",
+    "capabilities": [
+      "analyze-elf",
+      "binary-triage",
+      "emit-atoms"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+. pyelftools is vendored (pure-python), so no network/install at analysis time."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 1,
+      "notes": "Static structural parse (pyelftools). Never loads, links, maps, or executes the binary."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/analyze.py"
+      ],
+      "args": [
+        {
+          "name": "input",
+          "type": "file",
+          "required": true,
+          "desc": "path to an ELF binary/object/.so"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "class": "string",
+          "machine": "string",
+          "type": "string",
+          "neededLibraries": "array",
+          "capabilities": "object",
+          "hardening": "object",
+          "atoms": "array"
+        }
+      }
+    },
+    "payload": {
+      "tool": "pyelftools",
+      "source": "https://github.com/eliben/pyelftools",
+      "vendored": "scripts/site",
+      "runner": "scripts/analyze.py",
+      "build": "scripts/build.sh",
+      "pure_python": true,
+      "note": "Vendored via `uv pip install --target scripts/site` (pure-python, portable). Companion to hex-view for the 'I have a binary' case; emits BINARY.* atoms that map onto an MCD reading."
+    }
+  },
+  "emulate-code": {
+    "name": "Code Emulator (Unicorn)",
+    "description": "Emulate a raw code/shellcode blob on a virtual CPU (x86/x64/arm/arm64) with Unicorn and report the final register state, instruction count, and memory writes. Contained: the bytes run on an emulated CPU, not the host (memory-only; no host syscalls unless wired) — the safe way to 'run' shellcode or an isolated function.",
+    "version": "0.1.0",
+    "capabilities": [
+      "emulate-code",
+      "emulate",
+      "dynamic-analysis"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+. Unicorn is vendored under scripts/site."
+      }
+    ],
+    "safety": {
+      "executes_input": "sandboxed",
+      "network": "none",
+      "tier": 2,
+      "notes": "Dynamic analysis, but CONTAINED — the code executes on an emulated CPU (Unicorn), never on the host. Memory-only by default (no syscall passthrough), instruction-count + timeout bounded. Because it's contained it is NOT behind the --allow-dynamic gate; it's the safe way to observe shellcode behavior."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/emulate.py"
+      ],
+      "args": [
+        {
+          "name": "input",
+          "type": "file",
+          "required": true,
+          "desc": "raw code/shellcode blob"
+        },
+        {
+          "name": "--arch",
+          "type": "enum",
+          "required": false,
+          "desc": "x64 | x86 | arm64 | arm (default x64)",
+          "choices": [
+            "x64",
+            "x86",
+            "arm64",
+            "arm"
+          ]
+        },
+        {
+          "name": "--base",
+          "type": "int",
+          "required": false,
+          "desc": "load base address (default 0x1000000)"
+        },
+        {
+          "name": "--max-insn",
+          "type": "int",
+          "required": false,
+          "desc": "instruction cap (default 200000)"
+        },
+        {
+          "name": "--timeout",
+          "type": "int",
+          "required": false,
+          "desc": "seconds (default 10)"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "arch": "string",
+          "instructions": "int",
+          "stopReason": "string",
+          "registers": "object",
+          "memWrites": "array",
+          "error": "string|null"
+        }
+      }
+    },
+    "payload": {
+      "tool": "unicorn",
+      "source": "https://www.unicorn-engine.org",
+      "vendored": "scripts/site",
+      "runner": "scripts/emulate.py",
+      "note": "Vendored via `uv pip install --target` (native — platform-specific like the isolated-vm addon; ships wheels for common platforms). The dynamic tier's contained/emulation member: complements exec-observe (native run) and the tracer skills. Feed it shellcode carved by bin-triage or a function's bytes."
+    }
+  },
+  "exec-observe": {
+    "name": "Execute & Observe (dynamic)",
+    "description": "DYNAMIC: run a target in a fresh working directory with a timeout and capture its behavior — exit code, stdout/stderr, wall-clock time, and files it creates. The seed of the dynamic tier (richer skills add syscall/network tracing). EXECUTES the target — run only where you don't mind the risk.",
+    "version": "0.1.0",
+    "capabilities": [
+      "execute-target",
+      "observe-behavior",
+      "dynamic-analysis"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ — pure stdlib, no other dependency."
+      }
+    ],
+    "safety": {
+      "executes_input": "full",
+      "network": "target-controlled",
+      "tier": 3,
+      "notes": "DYNAMIC — this RUNS the target, which can do anything the host allows (including network). Isolation is the operator's choice: run in a disposable VM or a dedicated analysis box, or bind an isolation provider. rekit's dispatcher gates this behind --allow-dynamic (consent, not a sandbox requirement); the runner also refuses direct calls without --yes-i-consent / REKIT_ALLOW_DYNAMIC=1. It does bound the run with a working-dir + timeout, but does NOT sandbox the target."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "target",
+          "type": "file",
+          "required": true,
+          "desc": "executable/script to run and observe"
+        },
+        {
+          "name": "--timeout",
+          "type": "int",
+          "required": false,
+          "desc": "seconds before kill (default 30)"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "exitCode": "int|null",
+          "timedOut": "bool",
+          "durationSec": "number",
+          "filesCreated": "array",
+          "stdout": "string",
+          "stderr": "string",
+          "workdir": "string"
+        }
+      }
+    },
+    "payload": {
+      "tool": "(builtin)",
+      "vendored": null,
+      "runner": "scripts/run.py",
+      "pure_stdlib": true,
+      "note": "First DYNAMIC-tier skill (safety.executes_input=full). Establishes the consent pattern: the dispatcher requires --allow-dynamic; the runner double-checks. Isolation is a separate optional axis — native execution is a first-class mode for RE on a don't-care box. Next dynamic skills: strace/dtruss trace, Frida hooking, network capture, Unicorn emulation."
+    }
+  },
+  "frida-trace": {
+    "name": "Frida API Tracer",
+    "description": "DYNAMIC: spawn a target under Frida and trace a curated set of network/exec/file/crypto API calls (dynamic instrumentation, no debugger). Logs the calls the sample makes. EXECUTES the target; consent-gated. BYO frida-trace (pip install frida-tools).",
+    "version": "0.1.0",
+    "capabilities": [
+      "instrument-target",
+      "api-trace",
+      "dynamic-analysis"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ for the runner."
+      },
+      {
+        "tool": "frida-trace",
+        "check": [
+          "frida-trace",
+          "--version"
+        ],
+        "install_hint": "pip install frida-tools (pulls the frida native core; may need matching device/host frida-server for remote targets)."
+      }
+    ],
+    "safety": {
+      "executes_input": "full",
+      "network": "target-controlled",
+      "tier": 3,
+      "notes": "DYNAMIC — Frida spawns and runs the target natively while hooking it. Consent-gated (--allow-dynamic; runner checks REKIT_ALLOW_DYNAMIC=1/--yes-i-consent). Timeout-bounded. Run in a disposable VM / analysis box; isolation is the operator's choice."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "target",
+          "type": "file",
+          "required": true,
+          "desc": "executable to spawn + trace"
+        },
+        {
+          "name": "--patterns",
+          "type": "str",
+          "required": false,
+          "desc": "comma-separated function globs (default: network/exec/file/crypto)"
+        },
+        {
+          "name": "--timeout",
+          "type": "int",
+          "required": false,
+          "desc": "seconds before stop (default 20)"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "tool": "string",
+          "hookedCalls": "object",
+          "totalCalls": "int",
+          "raw": "string"
+        }
+      }
+    },
+    "payload": {
+      "tool": "frida-trace",
+      "source": "https://frida.re",
+      "vendored": null,
+      "runner": "scripts/run.py",
+      "note": "BYO frida-tools on PATH. Complements syscall-trace (kernel view) with an API/library view; great for seeing which library calls a sample makes even when statically obfuscated. Default hooks are curated globs; override with --patterns."
+    }
+  },
+  "ghidra-decompile": {
+    "name": "Ghidra Decompiler (headless)",
+    "description": "Decompile a native binary (ELF/PE/Mach-O) with full Ghidra headless analysis — higher fidelity than native-decompile (rizin pdg) for hard targets. Runs analyzeHeadless with a bundled Ghidra script that decompiles every function to one C file. Static: analyses + decompiles, never runs the binary. Prereq-gated on Ghidra's analyzeHeadless (needs a JRE 17+).",
+    "version": "0.1.0",
+    "capabilities": [
+      "decompile-native",
+      "decompile-elf",
+      "decompile-pe",
+      "decompile-macho",
+      "ghidra-headless"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ for the runner."
+      },
+      {
+        "tool": "analyzeHeadless",
+        "check": [
+          "analyzeHeadless",
+          "-help"
+        ],
+        "install_hint": "Install Ghidra (https://ghidra-sre.org) + a JRE 17+; put <ghidra>/support/analyzeHeadless on PATH (or set GHIDRA_HOME and the runner will find it)."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 1,
+      "notes": "Trusted analyzer (Ghidra) over an untrusted binary — full auto-analysis + decompilation, never execution/emulation. Runs in a throwaway project dir (deleted after), analysis timeout-bounded. Ghidra's analysis is heavier than rizin's; use for hard targets."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "input",
+          "type": "file",
+          "required": true,
+          "desc": "native binary (ELF/PE/Mach-O)"
+        },
+        {
+          "name": "outdir",
+          "type": "dir",
+          "required": true,
+          "desc": "output dir (writes decompiled.c)"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "tool": "string",
+          "outputFile": "string",
+          "bytes": "int",
+          "exitCode": "int"
+        }
+      }
+    },
+    "payload": {
+      "tool": "ghidra (analyzeHeadless)",
+      "source": "https://ghidra-sre.org",
+      "vendored": "scripts/ghidra_decompile.py",
+      "runner": "scripts/run.py",
+      "note": "BYO Ghidra on PATH (a large JVM app; not bundled). We DO bundle the Ghidra post-script (scripts/ghidra_decompile.py, Jython) that decompiles all functions. The heavy sibling of native-decompile: native-decompile (rizin pdg) is Ghidra's decompiler without a JVM for the common case; this is full Ghidra for hard targets. Dispatcher prereq gate = honest degradation."
+    }
+  },
+  "hex-view": {
+    "name": "Hex Viewer",
+    "description": "Non-interactive hex dump of a file or byte range (offset + hex + ASCII), with total size and sha256. Pure-Python stdlib, no dependencies. Reads bytes only — never executes the input.",
+    "version": "0.1.0",
+    "capabilities": [
+      "hex-view",
+      "hex-dump",
+      "inspect-bytes"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ (standard on macOS/Linux). No other dependency — this skill is pure stdlib."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 0,
+      "notes": "Read-only. Opens the file for bytes and prints a hex view. Never imports, parses as code, or executes the input."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/hexview.py"
+      ],
+      "args": [
+        {
+          "name": "input",
+          "type": "file",
+          "required": true,
+          "desc": "file to dump"
+        },
+        {
+          "name": "--offset",
+          "type": "int",
+          "required": false,
+          "desc": "start byte offset (default 0; negative = from end)"
+        },
+        {
+          "name": "--length",
+          "type": "int",
+          "required": false,
+          "desc": "bytes to show (default 256; 0 = whole file, capped at 1 MiB)"
+        },
+        {
+          "name": "--width",
+          "type": "int",
+          "required": false,
+          "desc": "bytes per row (default 16)"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "path": "string",
+          "offset": "int",
+          "length": "int",
+          "totalBytes": "int",
+          "sha256": "string|null",
+          "rows": "array"
+        }
+      }
+    },
+    "payload": {
+      "tool": "(builtin)",
+      "vendored": null,
+      "runner": "scripts/hexview.py",
+      "pure_stdlib": true,
+      "note": "Zero-dependency skill — no scripts/ to vendor and no build step; the runner is pure Python stdlib. A third packaging pattern alongside js-deobfuscate (node_modules) and pyc-decompile (pip --target)."
+    }
+  },
+  "ioc-extract": {
+    "name": "IOC Extractor",
+    "description": "Pull indicators of compromise from a file or directory (URLs, IPs, domains, emails, md5/sha1/sha256 hashes, .onion, CVEs, BTC/ETH addresses, registry keys) — from text and from strings mined out of binaries. Every value is DEFANGED in output (hxxp://evil[.]com, 1[.]2[.]3[.]4) so a report can't ship a live IOC. Pure stdlib, read-only; never resolves or fetches anything.",
+    "version": "0.1.0",
+    "capabilities": [
+      "extract-iocs",
+      "defang-iocs",
+      "emit-indicators"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ — pure stdlib, no other dependency."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 0,
+      "notes": "Read-only. Regex over file bytes / extracted strings; defangs output. Never connects to, resolves, or validates any indicator."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/extract.py"
+      ],
+      "args": [
+        {
+          "name": "input",
+          "type": "path",
+          "required": true,
+          "desc": "file OR directory to scan"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "filesScanned": "int",
+          "iocCount": "int",
+          "summary": "object",
+          "iocs": "array"
+        }
+      }
+    },
+    "payload": {
+      "tool": "(builtin)",
+      "vendored": null,
+      "runner": "scripts/extract.py",
+      "pure_stdlib": true,
+      "note": "Zero-dependency. Domains are filtered against a filename-extension blocklist and IPs against benign/octet checks to cut noise; both raw `value` and `defanged` are returned. A reporting utility over any file or an extracted/decompiled tree."
+    }
+  },
+  "ios-dump": {
+    "name": "iOS App Decryptor (砸壳)",
+    "description": "Dump a decrypted iOS app binary (FairPlay 砸壳) from a jailbroken device via frida-ios-dump: attaches to the running app with Frida and writes the decrypted Mach-O from memory so it can be loaded into IDA/Ghidra/Hopper. BYO the frida-ios-dump toolchain + a jailbroken device with frida-server. Does NOT execute a sample on the host — attaches to an app the operator already launched on a connected device.",
+    "version": "0.1.0",
+    "capabilities": [
+      "dump-ios",
+      "decrypt-fairplay",
+      "memory-dump"
+    ],
+    "kind": "analyze",
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ for the runner."
+      },
+      {
+        "tool": "frida-ps",
+        "check": [
+          "frida-ps",
+          "--version"
+        ],
+        "install_hint": "pip install frida frida-tools (host must match the on-device frida-server major version)"
+      }
+    ],
+    "safety": {
+      "executes_input": "sandboxed",
+      "network": "device-ssh",
+      "tier": 2,
+      "notes": "Invasive but contained to a connected jailbroken iOS device — NOT host execution. frida-ios-dump attaches (Frida) to an already-running app the operator launched and reads decrypted memory; it SSHes to the device only to list/pull the dump. Requires a JAILBROKEN device with frida-server + SSH. No host sample detonation; not behind the --allow-dynamic gate. The app must stay in the foreground during the dump."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "bundle_id",
+          "type": "str",
+          "required": true,
+          "desc": "target app Bundle ID (e.g. app.ish.iSH), or 'auto' to list running apps and pick"
+        },
+        {
+          "name": "outdir",
+          "type": "dir",
+          "required": true,
+          "desc": "local output directory for the dumped IPA"
+        },
+        {
+          "name": "--host",
+          "type": "str",
+          "required": false,
+          "desc": "device IP (default: auto-detect via frida-ls-devices / usb)"
+        },
+        {
+          "name": "--user",
+          "type": "str",
+          "required": false,
+          "desc": "SSH user (default mobile)"
+        },
+        {
+          "name": "--password",
+          "type": "str",
+          "required": false,
+          "desc": "SSH password (default alpine)"
+        },
+        {
+          "name": "--dump-tool",
+          "type": "path",
+          "required": false,
+          "desc": "path to frida-ios-dump's dump.py (default: $FRIDA_IOS_DUMP/dump.py, then ./frida-ios-dump/dump.py)"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default json)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "json",
+        "fields": {
+          "ok": "bool",
+          "bundleId": "string",
+          "ipa": "string|null",
+          "outputDir": "string",
+          "decrypted": "bool",
+          "cryptid": "int|null",
+          "error": "string?"
+        }
+      }
+    },
+    "payload": {
+      "tool": "frida-ios-dump",
+      "source": "https://github.com/AloneMonkey/frida-ios-dump",
+      "vendored": null,
+      "runner": "scripts/run.py",
+      "note": "BYO toolchain (like dotnet-decompile BYO ilspycmd): clone frida-ios-dump, pip install -r requirements.txt, and `npx frida-compile dump.ts -o dist/dump.js` (the TypeScript agent must be built before dump.py runs). Point the runner at it via --dump-tool or FRIDA_IOS_DUMP. Prereq-gated on frida-ps; device must be jailbroken with a matching frida-server + SSH. Pair with the Mach-O analyzers on the decrypted binary."
+    }
+  },
+  "js-covert-scan": {
+    "name": "JavaScript Covert-Tactics Scanner",
+    "description": "Detect covert/evasive tactics in JavaScript/TypeScript: Unicode steganography (invisible/zero-width/bidi chars, confusable-homoglyph punctuation and letters), XOR/char-code/escape string hiding, and environment-keyed conditional behavior (timezone/locale/geo/proxy). Emits judgment-free parallax atoms (XFRM.UNICODE / XFRM.BITWISE / XFRM.ENCODE / LOAD.EVAL / ENVI.ENVCHECK), each tagged method=\"covert-scan\" so the consumer's lens makes the obfuscation/evasion call by provenance, and flags when atom families co-occur. Static and read-only.",
+    "version": "0.1.0",
+    "capabilities": [
+      "detect-js-steganography",
+      "detect-js-obfuscation-tactics",
+      "detect-js-evasion",
+      "emit-atoms"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ — pure stdlib, no other dependency."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 0,
+      "notes": "Read-only static scan (regex + Unicode category analysis). Never parses as code, imports, or executes the input."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/scan.py"
+      ],
+      "args": [
+        {
+          "name": "input",
+          "type": "path",
+          "required": true,
+          "desc": "file OR directory of .js/.ts/.mjs/.cjs/.jsx/.tsx to scan"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default json)"
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "filesScanned": "int",
+          "findingCount": "int",
+          "summary": "object",
+          "families": "array",
+          "assessment": "string",
+          "findings": "array"
+        }
+      }
+    },
+    "payload": {
+      "tool": "(builtin)",
+      "vendored": null,
+      "runner": "scripts/scan.py",
+      "pure_stdlib": true,
+      "note": "Zero-dependency detector (Unicode via stdlib unicodedata + regex). Emits judgment-free parallax atoms (XFRM.UNICODE / XFRM.BITWISE / XFRM.ENCODE / LOAD.EVAL / ENVI.ENVCHECK), each tagged method=\"covert-scan\"; the per-tactic note preserves which hiding tactic was seen, and the strongest signal is co-occurrence across families (hidden text + obfuscation + environment-keyed branching). Deliberately tactic-focused, not tied to any single incident."
+    }
+  },
+  "js-deobfuscate": {
+    "name": "JavaScript Deobfuscator",
+    "description": "Deobfuscate and unpack obfuscated JavaScript (webcrack): reverses string arrays, folds constants, deflattens control flow, unminifies, and splits webpack/browserify bundles. Encoded string arrays are decoded by running the decoder inside an isolated-vm sandbox — not the whole program.",
+    "version": "0.1.0",
+    "capabilities": [
+      "deobfuscate-js",
+      "unpack-js-bundle",
+      "unminify-js"
+    ],
+    "prerequisites": [
+      {
+        "tool": "node",
+        "min_version": "18",
+        "check": [
+          "node",
+          "--version"
+        ],
+        "install_hint": "Install Node.js >= 18 (an LTS is safest for the isolated-vm prebuilt ABI). The tool is vendored; no npm/network is needed at run time."
+      }
+    ],
+    "safety": {
+      "executes_input": "sandboxed",
+      "network": "none",
+      "tier": 2,
+      "notes": "Primarily static AST transforms. To recover ENCODED string arrays it executes the obfuscated decoder function inside an isolated-vm sandbox (no fs, no network, memory/time capped) — a narrow slice, never the whole program. Run the node process itself sandboxed too: no network, writes only to the output dir, with a timeout."
+    },
+    "entry": {
+      "command": [
+        "node",
+        "scripts/run.mjs"
+      ],
+      "args": [
+        {
+          "name": "input",
+          "type": "file",
+          "required": true,
+          "desc": "path to the obfuscated .js"
+        },
+        {
+          "name": "outdir",
+          "type": "dir",
+          "required": true,
+          "desc": "output dir; writes deobfuscated.js and, for bundles, unpacked/ modules"
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "json",
+        "fields": {
+          "ok": "bool",
+          "outputFile": "string",
+          "unpackedDir": "string|null",
+          "moduleCount": "int",
+          "bytesIn": "int",
+          "bytesOut": "int",
+          "changed": "bool"
+        }
+      }
+    },
+    "payload": {
+      "tool": "webcrack",
+      "source": "https://github.com/j4k0xb/webcrack",
+      "vendored": "scripts/node_modules",
+      "runner": "scripts/run.mjs",
+      "build": "scripts/build.sh",
+      "native_dependency": "isolated-vm (ships prebuilds for darwin-arm64/x64, linux-x64/arm64 glibc+musl, win32-x64)",
+      "note": "Vendored production node_modules (not a single-file bundle) because webcrack's isolated-vm native addon can't be inlined by a JS bundler. Committed so the skill is offline and reproducible; re-run build.sh to refresh + re-pin."
+    }
+  },
+  "js-sourcemap-extract": {
+    "name": "JS Source-Map Extractor",
+    "description": "Recover the original, un-minified sources from a JavaScript source map's sourcesContent — turning a bundled/minified .js back into a readable file tree. Accepts a .map (JSON) or a .js that references one via //# sourceMappingURL (inline data: map or sibling .map). Pure stdlib, read-only; path-traversal guarded (strips webpack:// and ../).",
+    "version": "0.1.0",
+    "capabilities": [
+      "extract-sourcemap",
+      "unminify-js",
+      "reveal-original-source"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ — pure stdlib, no other dependency."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 0,
+      "notes": "Read-only. Parses JSON (and base64-decodes inline maps) and writes sourcesContent to files. Never fetches a remote map, imports, or executes anything."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/extract.py"
+      ],
+      "args": [
+        {
+          "name": "input",
+          "type": "file",
+          "required": true,
+          "desc": "a .map (JSON) or a .js referencing one"
+        },
+        {
+          "name": "outdir",
+          "type": "dir",
+          "required": true,
+          "desc": "output dir for recovered sources"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "hasSourceMap": "bool",
+          "sourceCount": "int",
+          "recovered": "int",
+          "withoutContent": "int",
+          "extractedTo": "string"
+        }
+      }
+    },
+    "payload": {
+      "tool": "(builtin)",
+      "vendored": null,
+      "runner": "scripts/extract.py",
+      "pure_stdlib": true,
+      "note": "Zero-dependency. Complements js-deobfuscate: if a map is present, this recovers the true original source instantly (no AST guessing); otherwise fall back to js-deobfuscate. Feeds js-covert-scan."
+    }
+  },
+  "js-string-decode": {
+    "name": "JavaScript Constant-Key String Decoder",
+    "description": "Statically decode constant-key XOR / charCode string obfuscation in JavaScript so a downstream scanner can read the hidden strings (C2 URLs, victim domains, timezone names, shell commands). Finds decode sites with regex/heuristics — a `String.fromCharCode(x ^ KEY)` / `x ^ KEY` applied over a STATIC encoded literal (int array, string, or `\\xNN`/`\\uNNNN` blob, incl. a `Buffer.from(p,\"base64\")`/`atob(p)` front transform) — resolves KEY when it is a small int literal OR a variable assigned a small int nearby (best-effort constant propagation), applies the XOR, and writes the recovered plaintext to outdir/decoded-strings.js for rescanning. READ-ONLY: reads bytes and does arithmetic; never parses as code or executes the input.",
+    "version": "0.1.0",
+    "capabilities": [
+      "decode-strings",
+      "xor-decode"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ — pure stdlib (re, base64, mmap), no other dependency."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 0,
+      "notes": "Read-only static decode (regex heuristics + XOR arithmetic + base64/escape decoding). Never parses the file as code, imports it, runs a JS engine, or executes any part of it. Complements js-deobfuscate (which runs the decoder in a sandbox) with a zero-execution path for the constant-key case."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/decode.py"
+      ],
+      "args": [
+        {
+          "name": "input",
+          "type": "file",
+          "required": true,
+          "desc": "JavaScript/TypeScript file to decode"
+        },
+        {
+          "name": "outdir",
+          "type": "dir",
+          "required": false,
+          "desc": "if given, write recovered plaintext to <outdir>/decoded-strings.js for rescanning"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "json | text (default json — the machine result the RE provider consumes)",
+          "choices": [
+            "json",
+            "text"
+          ]
+        },
+        {
+          "name": "--max-bytes",
+          "type": "int",
+          "required": false,
+          "desc": "cap on bytes read from the input (default 64 MiB)"
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "json",
+        "fields": {
+          "ok": "bool",
+          "outputDir": "string|null",
+          "decoded": "array of {key:int, count:int, sample:string} (grouped by key)",
+          "siteCount": "int",
+          "error": "string (only when ok=false)"
+        }
+      }
+    },
+    "payload": {
+      "tool": "(builtin)",
+      "vendored": null,
+      "runner": "scripts/decode.py",
+      "pure_stdlib": true,
+      "note": "Zero-dependency static decoder. Two-phase: (1) detect decoder FUNCTIONS (constant-key XOR-charCode body, optional base64/atob front transform) and decode their call-site payloads, resolving payload/key VARIABLES by nearest-preceding constant assignment; (2) inline sites (arr.map(c=>c^K), s.split('').map(...charCodeAt^K), for-of over an array/string/escape-blob). Emits decoded plaintext to <outdir>/decoded-strings.js as JS string literals so the fold rescans it as DerivedSource. Custom obfuscation is heuristic — see SKILL.md for the shapes it does and does not handle."
+    }
+  },
+  "jvm-decompile": {
+    "name": "JVM / Android Decompiler",
+    "description": "Decompile Java / Android bytecode (.apk / .dex / .jar / .class) back to Java source with jadx. Static: reads bytecode, never runs it. Prereq-gated on the jadx CLI (which needs a JRE); when jadx is absent the skill reports the honest blind spot with an install hint.",
+    "version": "0.1.0",
+    "capabilities": [
+      "decompile-jvm",
+      "decompile-apk",
+      "decompile-dex",
+      "decompile-jar"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ for the runner."
+      },
+      {
+        "tool": "jadx",
+        "check": [
+          "jadx",
+          "--version"
+        ],
+        "install_hint": "Install jadx (https://github.com/skylot/jadx) and put it on PATH; jadx needs a JRE (java >= 11)."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 1,
+      "notes": "Trusted decompiler (jadx) over untrusted bytecode. jadx reads and reconstructs source; it does not run the input. Run sandboxed with a timeout; --no-res skips resource decoding."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "input",
+          "type": "file",
+          "required": true,
+          "desc": ".apk / .dex / .jar / .class"
+        },
+        {
+          "name": "outdir",
+          "type": "dir",
+          "required": true,
+          "desc": "output dir for decompiled Java"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "tool": "string",
+          "outputDir": "string",
+          "filesWritten": "int",
+          "exitCode": "int"
+        }
+      }
+    },
+    "payload": {
+      "tool": "jadx",
+      "source": "https://github.com/skylot/jadx",
+      "vendored": null,
+      "runner": "scripts/run.py",
+      "note": "BYO tool on PATH (jadx is a large JVM app + needs a JRE, so it's not bundled). The runner just invokes jadx; the dispatcher's prereq gate provides honest degradation when it's missing. Feeds js/py covert-scan style review on the recovered .java."
+    }
+  },
+  "macho-analyze": {
+    "name": "Mach-O Binary Analyzer",
+    "description": "Static triage of Mach-O binaries (macOS/iOS executables, dylibs, bundles, kexts) with macholib: arch/fat slices, file type, PIE, linked dylibs, RPATH, code-signature presence, and encryption (LC_ENCRYPTION_INFO). Emits BINARY.* atoms. Reads structure only — never runs the binary.",
+    "version": "0.1.0",
+    "capabilities": [
+      "analyze-macho",
+      "binary-triage",
+      "emit-atoms"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+. macholib is vendored (pure-python), so no network/install at analysis time."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 1,
+      "notes": "Static structural parse (macholib). Never loads, maps, or executes the binary."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/analyze.py"
+      ],
+      "args": [
+        {
+          "name": "input",
+          "type": "file",
+          "required": true,
+          "desc": "path to a Mach-O binary (executable/.dylib/.bundle)"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "fat": "bool",
+          "archCount": "int",
+          "arches": "array",
+          "atoms": "array"
+        }
+      }
+    },
+    "payload": {
+      "tool": "macholib",
+      "source": "https://github.com/ronaldoussoren/macholib",
+      "vendored": "scripts/site",
+      "runner": "scripts/analyze.py",
+      "build": "scripts/build.sh",
+      "pure_python": true,
+      "note": "Vendored via `uv pip install --target scripts/site` (pure-python, portable). Completes the PE/ELF/Mach-O triage trio; emits BINARY.* atoms that map onto an MCD reading."
+    }
+  },
+  "native-decompile": {
+    "name": "Native Decompiler",
+    "description": "Decompile a native binary (ELF/PE/Mach-O) to C-like pseudocode with rizin's built-in Ghidra decompiler (pdg over all functions). Static: analyses and decompiles, never runs the target. Prereq-gated on rizin/r2; honest blind spot with an install hint when absent. Pair with elf/pe/macho-analyze.",
+    "version": "0.1.0",
+    "capabilities": [
+      "decompile-native",
+      "decompile-elf",
+      "decompile-pe",
+      "decompile-macho"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ for the runner."
+      },
+      {
+        "tool": "rizin",
+        "check": [
+          "rizin",
+          "-v"
+        ],
+        "install_hint": "Install rizin (https://rizin.re); its `pdg` command is a built-in Ghidra decompiler. (r2/radare2 also works.)"
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 1,
+      "notes": "Trusted analyzer (rizin) over an untrusted binary — static analysis + decompilation, never execution/emulation. Timeout-bounded; scr.color disabled for clean text."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "input",
+          "type": "file",
+          "required": true,
+          "desc": "native binary (ELF/PE/Mach-O)"
+        },
+        {
+          "name": "outdir",
+          "type": "dir",
+          "required": true,
+          "desc": "output dir (writes decompiled.c)"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "tool": "string",
+          "outputFile": "string",
+          "bytes": "int",
+          "exitCode": "int"
+        }
+      }
+    },
+    "payload": {
+      "tool": "rizin",
+      "source": "https://rizin.re",
+      "vendored": null,
+      "runner": "scripts/run.py",
+      "note": "BYO tool on PATH (rizin ships a large native toolchain; not bundled). Uses rizin's built-in Ghidra decompiler (`pdg`) — no separate Ghidra/JVM needed. Dispatcher prereq gate = honest degradation. Complements the *-analyze triage skills."
+    }
+  },
+  "net-capture": {
+    "name": "Network Capture",
+    "description": "DYNAMIC: capture a target's network traffic to a pcap while it runs (tcpdump), then summarize packets, talking-to IPs, and DNS queries. Point --iface at a sinkholed interface for safer detonation. EXECUTES the target and captures on an interface (usually needs root); consent-gated.",
+    "version": "0.1.0",
+    "capabilities": [
+      "network-capture",
+      "behavioral-trace",
+      "dynamic-analysis"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ for the runner."
+      },
+      {
+        "tool": "tcpdump",
+        "check": [
+          "tcpdump",
+          "--version"
+        ],
+        "install_hint": "Install tcpdump. Capturing usually requires root (sudo) or capture capabilities."
+      }
+    ],
+    "safety": {
+      "executes_input": "full",
+      "network": "capture",
+      "tier": 3,
+      "notes": "DYNAMIC — runs the target natively and sniffs an interface (needs root). Consent-gated (--allow-dynamic; runner checks REKIT_ALLOW_DYNAMIC=1/--yes-i-consent). For safe detonation, run in an isolated network (a VM with a sinkholed/proxied interface) and point --iface at it. Duration-bounded."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "target",
+          "type": "file",
+          "required": true,
+          "desc": "executable/script to run"
+        },
+        {
+          "name": "--iface",
+          "type": "str",
+          "required": false,
+          "desc": "capture interface (default en0/any)"
+        },
+        {
+          "name": "--duration",
+          "type": "int",
+          "required": false,
+          "desc": "seconds to run + capture (default 15)"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "pcap": "string",
+          "packets": "int",
+          "talkers": "object",
+          "dns": "array"
+        }
+      }
+    },
+    "payload": {
+      "tool": "tcpdump",
+      "source": "https://www.tcpdump.org",
+      "vendored": null,
+      "runner": "scripts/run.py",
+      "note": "BYO tcpdump on PATH (root for capture). Writes a pcap + a talkers/DNS summary; feed the IPs/domains into ioc-extract. Pairs with syscall-trace for full behavioral coverage."
+    }
+  },
+  "ord-lookup": {
+    "name": "Ordinal Import Resolver",
+    "description": "Resolve Windows DLL ordinal imports to exported symbol names from a vendored static database (ws2_32/wsock32, oleaut32). Stripped or by-ordinal imports become readable. Pure static lookup — reads no input file, runs no target.",
+    "version": "0.1.0",
+    "capabilities": [
+      "resolve-ordinal",
+      "enrich-imports"
+    ],
+    "kind": "analyze",
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ for the runner."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 1,
+      "notes": "Pure static lookup against a vendored JSON database. Reads no sample, runs nothing. Aliases wsock32/mswsock → ws2_32. Use to enrich an import table dump where entries are ord#N rather than names."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "dll",
+          "type": "str",
+          "required": false,
+          "desc": "DLL name (e.g. ws2_32, oleaut32.dll); omit with --list"
+        },
+        {
+          "name": "ordinal",
+          "type": "int",
+          "required": false,
+          "desc": "ordinal number to resolve"
+        },
+        {
+          "name": "--all",
+          "type": "flag",
+          "required": false,
+          "desc": "dump every ordinal→name for the DLL"
+        },
+        {
+          "name": "--list",
+          "type": "flag",
+          "required": false,
+          "desc": "list known DLLs and exit"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "dll": "string",
+          "ordinal": "int|null",
+          "name": "string",
+          "known": "bool"
+        }
+      }
+    },
+    "payload": {
+      "tool": "(builtin data)",
+      "vendored": "bin/ordinals.json",
+      "runner": "scripts/run.py",
+      "note": "Consolidated from the standalone ordlookup package (3 py files → 1 JSON). 515 ordinals across ws2_32 + oleaut32; wsock32/mswsock aliased to ws2_32. Pure-stdlib runner. Refactored to drop the package overhead and dedupe the wsock32 copy of the ws2_32 table."
+    }
+  },
+  "pe-analyze": {
+    "name": "PE Binary Analyzer",
+    "description": "Static triage of Windows PE binaries (EXE/DLL) with pefile: machine/arch, subsystem, entry/imagebase, sections + per-section entropy (packing) and RWX flags, imports classified by capability (inject/exec/network/anti-debug/persist/crypto), exports, TLS callbacks, overlay, and Authenticode presence. Emits BINARY.* atoms. Reads structure only — never runs the binary.",
+    "version": "0.1.0",
+    "capabilities": [
+      "analyze-pe",
+      "binary-triage",
+      "emit-atoms"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+. pefile is vendored (pure-python), so no network/install at analysis time."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 1,
+      "notes": "Static structural parse (pefile). Never loads, maps, or executes the binary."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/analyze.py"
+      ],
+      "args": [
+        {
+          "name": "input",
+          "type": "file",
+          "required": true,
+          "desc": "path to a PE binary (.exe/.dll/.sys/.node)"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "machine": "string",
+          "kind": "string",
+          "subsystem": "string",
+          "importCount": "int",
+          "capabilities": "object",
+          "signed": "bool",
+          "atoms": "array"
+        }
+      }
+    },
+    "payload": {
+      "tool": "pefile",
+      "source": "https://github.com/erocarrera/pefile",
+      "vendored": "scripts/site",
+      "runner": "scripts/analyze.py",
+      "build": "scripts/build.sh",
+      "pure_python": true,
+      "note": "Vendored via `uv pip install --target scripts/site` (pure-python, portable). Companion to elf-analyze / hex-view; emits BINARY.* atoms that map onto an MCD reading."
+    }
+  },
+  "pe-unmap": {
+    "name": "PE Alignment Converter (pe_unmapper)",
+    "description": "Convert between PE file alignments via hasherezade's pe_unmapper (libpeconv): UNMAP a memory dump back to raw-file alignment, MAP raw→virtual, or REALIGN. Essential for finishing a memory dump into a loadable EXE. Windows-only vendored binary. Static: reads bytes, writes a converted file, runs no target.",
+    "version": "0.1.0",
+    "capabilities": [
+      "pe-unmap",
+      "pe-realign",
+      "recover-dump"
+    ],
+    "kind": "construct",
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ for the runner."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 1,
+      "notes": "Static byte transform over a PE file — reads input, writes a converted output, never runs it. The vendored pe_unmapper.exe is a Windows PE32+ binary; run on a Windows analysis host (the runner errors clearly on non-Windows unless REKIT_ALLOW_WINE=1). BSD-2-Clause (pe_unmapper + libpeconv, hasherezade)."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "input",
+          "type": "file",
+          "required": true,
+          "desc": "input PE file (raw or virtual-aligned)"
+        },
+        {
+          "name": "outdir",
+          "type": "dir",
+          "required": true,
+          "desc": "output directory"
+        },
+        {
+          "name": "--mode",
+          "type": "enum",
+          "required": false,
+          "desc": "unmap=Virtual→Raw [default] | map=Raw→Virtual | realign=Virtual→Raw(Raw==Virtual)",
+          "choices": [
+            "unmap",
+            "map",
+            "realign"
+          ]
+        },
+        {
+          "name": "--base",
+          "type": "str",
+          "required": false,
+          "desc": "load base address in hex (e.g. 0x10000000); auto-detected if omitted"
+        },
+        {
+          "name": "--out-name",
+          "type": "str",
+          "required": false,
+          "desc": "output filename (default: <input-stem>_<mode>.exe)"
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "json",
+        "fields": {
+          "ok": "bool",
+          "mode": "string",
+          "input": "string",
+          "output": "string|null",
+          "outputSize": "int",
+          "error": "string?"
+        }
+      }
+    },
+    "payload": {
+      "tool": "pe_unmapper",
+      "source": "https://github.com/hasherezade/pe_unmapper",
+      "vendored": "bin/pe_unmapper.exe",
+      "runner": "scripts/run.py",
+      "build": "scripts/build.ps1",
+      "license": "BSD-2-Clause (pe_unmapper + libpeconv)",
+      "note": "Vendored Windows x64 release build (libpeconv-backed). The third step of dump recovery: OEP-find → dump → [this] realign → IAT-rebuild. Pair with pyscylla for the IAT rebuild step. Rebuild from source via scripts/build.ps1 (needs VS 2022 + CMake)."
+    }
+  },
+  "py-covert-scan": {
+    "name": "Python Covert-Tactics Scanner",
+    "description": "Detect covert/evasive tactics in Python: hidden code execution (exec/eval/compile of base64/hex/zlib/marshal output, pickle deserialization, dynamic import, chr()/\\x string building), environment-keyed evasion (platform/VM/sandbox/analyst detection, timezone/locale, debugger/tracer checks), and Unicode steganography. Emits judgment-free parallax atoms (XFRM.UNICODE / XFRM.ENCODE / LOAD.EVAL / LOAD.DESER / LOAD.REFLECT / ENVI.ENVCHECK / ENVI.SANDBOX / ENVI.DEBUG), each tagged method=\"covert-scan\" so the consumer's lens makes the obfuscation/evasion call by provenance, and flags family co-occurrence. Static and read-only.",
+    "version": "0.1.0",
+    "capabilities": [
+      "detect-py-obfuscation-tactics",
+      "detect-py-evasion",
+      "detect-steganography",
+      "emit-atoms"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ — pure stdlib, no other dependency."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 0,
+      "notes": "Read-only static scan (regex + Unicode analysis). Never imports, compiles, or executes the input."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/scan.py"
+      ],
+      "args": [
+        {
+          "name": "input",
+          "type": "path",
+          "required": true,
+          "desc": "file OR directory of .py to scan"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default json)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "filesScanned": "int",
+          "findingCount": "int",
+          "summary": "object",
+          "families": "array",
+          "assessment": "string",
+          "findings": "array"
+        }
+      }
+    },
+    "payload": {
+      "tool": "(builtin)",
+      "vendored": null,
+      "runner": "scripts/scan.py",
+      "pure_stdlib": true,
+      "note": "Zero-dependency detector, the Python sibling of js-covert-scan (same tactic model, emitting real parallax atoms XFRM.UNICODE / XFRM.ENCODE / LOAD.EVAL / LOAD.DESER / LOAD.REFLECT / ENVI.ENVCHECK / ENVI.SANDBOX / ENVI.DEBUG, each tagged method=\"covert-scan\"). Strongest signal is decode-then-exec co-occurring with a sandbox/platform check (evasive dropper). Pairs with pyc-decompile for the Python-malware path."
+    }
+  },
+  "pyc-decompile": {
+    "name": "Python Bytecode Decompiler",
+    "description": "Decompile Python bytecode (.pyc / compiled code objects) back to source with decompyle3. Best for CPython 3.7-3.8 bytecode (e.g. PyInstaller-extracted payloads); reports honestly when the bytecode version is out of range. Static: reads bytecode, never runs it.",
+    "version": "0.1.0",
+    "capabilities": [
+      "decompile-python-bytecode",
+      "decompile-pyc"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ to run the decompiler. The target .pyc can be a different version; decompyle3 targets 3.7-3.8 bytecode."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 1,
+      "notes": "Static analysis: unmarshals the code object and reconstructs source from disassembled bytecode. Never imports, execs, or runs the .pyc."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "input",
+          "type": "file",
+          "required": true,
+          "desc": "path to the .pyc / compiled bytecode"
+        },
+        {
+          "name": "outdir",
+          "type": "dir",
+          "required": true,
+          "desc": "output dir; writes decompiled.py"
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "json",
+        "fields": {
+          "ok": "bool",
+          "outputFile": "string",
+          "detectedVersion": "string|null",
+          "supported": "bool|null",
+          "bytesOut": "int"
+        }
+      }
+    },
+    "payload": {
+      "tool": "decompyle3",
+      "source": "https://github.com/rocky/python-decompile3",
+      "vendored": "scripts/site",
+      "runner": "scripts/run.py",
+      "build": "scripts/build.sh",
+      "pure_python": true,
+      "note": "Vendored via `uv pip install --target scripts/site` (pure-Python → portable across OS/arch, unlike webcrack's native addon). decompyle3 targets CPython 3.7-3.8 bytecode; older bytecode uses uncompyle6, 3.9+ needs a version-matched decompiler — the runner reports the detected version and whether it's in range."
+    }
+  },
+  "pyinstaller-extract": {
+    "name": "PyInstaller Extractor",
+    "description": "Carve the Python out of a PyInstaller executable: locate the appended CArchive, extract every entry, and unpack the inner PYZ into individual .pyc files with reconstructed headers — ready for pyc-decompile. Pure stdlib. Static: parses archive structures and marshal.loads the PYZ TOC (deserialization, not execution); never runs the executable or the extracted code.",
+    "version": "0.1.0",
+    "capabilities": [
+      "extract-pyinstaller",
+      "carve-pyc"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ — pure stdlib, no other dependency."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 1,
+      "notes": "Static. Parses the CArchive/PYZ byte structures and marshal.loads the PYZ table of contents (deserialization — does NOT execute code objects). Never launches the executable or imports/runs any extracted module. Path-traversal + per-file guards on extraction."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/extract.py"
+      ],
+      "args": [
+        {
+          "name": "input",
+          "type": "file",
+          "required": true,
+          "desc": "a PyInstaller-built executable (onefile or onedir main)"
+        },
+        {
+          "name": "outdir",
+          "type": "dir",
+          "required": true,
+          "desc": "output dir; .pyc land in PYZ-contents/"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "isPyInstaller": "bool",
+          "pythonVersion": "string",
+          "archiveEntries": "int",
+          "filesWritten": "int",
+          "pyzModulesExtracted": "int",
+          "extractedTo": "string"
+        }
+      }
+    },
+    "payload": {
+      "tool": "(builtin)",
+      "vendored": null,
+      "runner": "scripts/extract.py",
+      "pure_stdlib": true,
+      "note": "Zero-dependency (pyinstxtractor-style). Closes the Python-malware chain: unpack → pyinstaller-extract → pyc-decompile → py-covert-scan. Reconstructs .pyc headers from the PYZ's embedded magic so decompyle3/pyc-decompile can read them (best on 3.7-3.8 targets)."
+    }
+  },
+  "pyscylla": {
+    "name": "IAT Rebuilder (libscylla bindings)",
+    "description": "Dump, realign, and rebuild Import Address Tables of Windows PE binaries via Python bindings to libscylla (the engine behind the classic Scylla GUI). The programmatic successor to Scylla for agent-driven memory-dump cleanup: process enumeration (arch-aware), live dump, IAT search/parse/fix, XML tree round-trip, and reference scanning. Windows-only (vendored libscylla-{x86,x64}.dll + matching-arch Python). DYNAMIC on a live process (ReadProcessMemory) but does not execute the target.",
+    "version": "0.1.0",
+    "capabilities": [
+      "iat-rebuild",
+      "fix-imports",
+      "dump-process",
+      "pe-rebuild"
+    ],
+    "kind": "construct",
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ (3.10+ preferred). MUST match the target arch: x64 target → 64-bit Python, x86 target → 32-bit Python."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 2,
+      "notes": "Reads a live process's memory (ReadProcessMemory / OpenProcess) to dump + rebuild its IAT — invasive but does NOT execute the target. Requires Windows (libscylla is a native DLL) and arch-matched Python: sizeof(DWORD_PTR) is baked into libscylla at compile time, so a 64-bit libscylla only correctly processes 64-bit targets (wrong arch = silently corrupt output). Use the `arch` op to check the match before dump/fix. GPL-3.0-only (inherited from upstream Scylla)."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "op",
+          "type": "enum",
+          "required": true,
+          "desc": "version | arch | procs | dump | iat-find | fix | rebuild | tree | refs (see SKILL.md for each op's args)",
+          "choices": [
+            "version",
+            "arch",
+            "procs",
+            "dump",
+            "iat-find",
+            "fix",
+            "rebuild",
+            "tree",
+            "refs"
+          ]
+        },
+        {
+          "name": "--pid",
+          "type": "int",
+          "required": false,
+          "desc": "target process id (dump/iat-find/fix/arch/refs)"
+        },
+        {
+          "name": "--name",
+          "type": "str",
+          "required": false,
+          "desc": "target process name (dump alternative to --pid)"
+        },
+        {
+          "name": "--addr",
+          "type": "str",
+          "required": false,
+          "desc": "IAT address in hex (fix/tree)"
+        },
+        {
+          "name": "--size",
+          "type": "str",
+          "required": false,
+          "desc": "IAT size in hex (fix/tree)"
+        },
+        {
+          "name": "--dump",
+          "type": "path",
+          "required": false,
+          "desc": "dump file path (fix)"
+        },
+        {
+          "name": "--out",
+          "type": "path",
+          "required": false,
+          "desc": "output file (dump/fix)"
+        },
+        {
+          "name": "--file",
+          "type": "file",
+          "required": false,
+          "desc": "PE file to rebuild (rebuild/tree)"
+        },
+        {
+          "name": "--start",
+          "type": "str",
+          "required": false,
+          "desc": "iat-find search start address (default: image base)"
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "json",
+        "fields": {
+          "ok": "bool",
+          "op": "string",
+          "error": "string?"
+        }
+      }
+    },
+    "payload": {
+      "tool": "pyscylla (libscylla bindings)",
+      "source": "https://github.com/NtQuery/Scylla",
+      "vendored": "scripts/pyscylla/ + scripts/bin/libscylla-{x86,x64}.dll",
+      "runner": "scripts/run.py",
+      "build": "scripts/build-native.ps1",
+      "license": "GPL-3.0-only (upstream Scylla)",
+      "note": "The headline dump-recovery tool: iat-find → dump → fix → rebuild. The runner forwards `op` + args to the vendored pyscylla CLI (--json forced). Also ships an MCP server (scripts/pyscylla/mcp_server.py) for direct LLM-agent integration. Arch-match rule is critical — run `arch` first. Pair with pe-unmap for realignment."
+    }
+  },
+  "qiling-emulate": {
+    "name": "Binary Emulator (Qiling)",
+    "description": "Emulate a FULL binary (PE/ELF/Mach-O/…) with the Qiling framework: loads the program and emulates the OS/syscalls against a BYO rootfs, so a Linux ELF or Windows PE can be detonated on this host cross-arch/cross-OS WITHOUT native execution or a VM. Contained: syscalls hit Qiling's emulation, not the host kernel. Complements emulate-code (raw shellcode, no OS) and exec-observe (native run).",
+    "version": "0.1.0",
+    "capabilities": [
+      "emulate-binary",
+      "emulate",
+      "dynamic-analysis",
+      "behavioral-trace"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+. Qiling is vendored under scripts/site (run `rekit install qiling-emulate`)."
+      }
+    ],
+    "safety": {
+      "executes_input": "sandboxed",
+      "network": "emulated",
+      "tier": 2,
+      "notes": "Dynamic analysis, but CONTAINED — the binary runs on Qiling's emulated CPU (Unicorn) and its syscalls are implemented by Qiling against the rootfs, not passed to the host kernel. File/network effects are emulated by default. Because it's contained it is NOT behind the --allow-dynamic gate (like emulate-code). NOTE: Qiling CAN be configured for syscall/network passthrough — that widens the blast radius and is the operator's explicit choice, not the default here. Wall-clock-timeout bounded via emu_stop."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "target",
+          "type": "file",
+          "required": true,
+          "desc": "binary to emulate (PE/ELF/Mach-O/shellcode)"
+        },
+        {
+          "name": "--rootfs",
+          "type": "dir",
+          "required": true,
+          "desc": "OS rootfs Qiling emulates against (BYO; must match target OS/arch)"
+        },
+        {
+          "name": "--args",
+          "type": "str",
+          "required": false,
+          "desc": "argv passed to the emulated program"
+        },
+        {
+          "name": "--timeout",
+          "type": "int",
+          "required": false,
+          "desc": "wall-clock seconds before emu_stop (default 30)"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "tool": "string",
+          "outcome": "string",
+          "arch": "string|null",
+          "syscalls": "object",
+          "logTail": "string",
+          "error": "string?"
+        }
+      }
+    },
+    "payload": {
+      "tool": "qiling",
+      "source": "https://qiling.io",
+      "vendored": "scripts/site",
+      "runner": "scripts/run.py",
+      "note": "BYO rootfs (github.com/qilingframework/rootfs) — matching the target's OS/arch backs the emulation. Qiling is heavier than Unicorn (pulls unicorn/capstone/keystone/pefile/…); vendored via `uv pip install --target`. The mid-tier between emulate-code (no OS) and exec-observe (native): full-binary behavior, contained, cross-platform."
+    }
+  },
+  "r2-recon": {
+    "name": "radare2 Recon",
+    "description": "Cross-format static recon of a native binary with radare2: drives r2 headless (-q -c, JSON commands) in one session for binary info, sections + per-section entropy, imports, exports, entry points, analysed functions, and decoded strings (incl. UTF-16). r2 auto-detects ELF/PE/Mach-O/DEX/..., so one skill covers them all and reports the relational view r2 is good at. Classifies imports by capability (inject/exec/network/anti-debug — Windows AND POSIX) and surfaces interesting strings. Emits BINARY.* atoms. Static: r2 analyses structure; it never runs or emulates the target.",
+    "version": "0.1.0",
+    "capabilities": [
+      "analyze-native",
+      "binary-triage",
+      "emit-atoms"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ for the runner."
+      },
+      {
+        "tool": "r2",
+        "check": [
+          "r2",
+          "-version"
+        ],
+        "install_hint": "Install radare2 (https://radare.org) — `brew install radare2` (macOS), `apt install radare2` (Debian/Ubuntu), or build from source / `r2pm`. r2 is a large native toolchain, so it is BYO (not vendored)."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 1,
+      "notes": "Trusted analyzer (radare2) over an untrusted binary — static structural + analysis pass; r2 never runs or emulates the target. Timeout-bounded; scr.color disabled for clean, parseable JSON output."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "input",
+          "type": "file",
+          "required": true,
+          "desc": "native binary — any format r2 detects (ELF/PE/Mach-O/DEX/...)"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "choices": [
+            "text",
+            "json"
+          ],
+          "required": false,
+          "desc": "text | json (default text)"
+        },
+        {
+          "name": "--analysis",
+          "type": "enum",
+          "choices": [
+            "aaa",
+            "aa",
+            "none"
+          ],
+          "required": false,
+          "desc": "aaa (default, full) | aa (basic, faster) | none (structural only)"
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "format": "string",
+          "arch": "string",
+          "bits": "int",
+          "os": "string",
+          "stripped": "bool",
+          "importCount": "int",
+          "functionCount": "int",
+          "sectionCount": "int",
+          "capabilities": "object",
+          "interestingStrings": "object",
+          "atoms": "array"
+        }
+      }
+    },
+    "payload": {
+      "tool": "radare2 (r2)",
+      "source": "https://radare.org",
+      "vendored": null,
+      "runner": "scripts/run.py",
+      "note": "BYO radare2 on PATH (a large native toolchain; not bundled). The cross-format, relational sibling of pe/elf/macho-analyze: those are pure-python structural parses for one format each; r2-recon is one skill over r2's auto-detect + analysed functions/strings/xrefs. Emits the same BINARY.* atoms so a caller can substitute freely. Complements native-decompile (rizin pdg) — recon here, decompile there. Dispatcher prereq gate = honest degradation."
+    }
+  },
+  "secrets-scan": {
+    "name": "Secrets Scanner",
+    "description": "Find leaked credentials in files: high-signal provider patterns (AWS/GitHub/Slack/Google/Stripe/OpenAI/SendGrid/Twilio/JWT/PEM private keys) plus a generic high-entropy secret-assignment catch with placeholder filtering. Matches are REDACTED in output — never echoes a full secret. Pure stdlib, read-only.",
+    "version": "0.1.0",
+    "capabilities": [
+      "scan-secrets",
+      "detect-credentials",
+      "emit-atoms"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ — pure stdlib, no other dependency."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 0,
+      "notes": "Read-only. Reads text files and regex/entropy-matches. Redacts secret values in output. Never validates a key against a remote service, imports, or executes anything."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/scan.py"
+      ],
+      "args": [
+        {
+          "name": "input",
+          "type": "path",
+          "required": true,
+          "desc": "file OR directory to scan"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        },
+        {
+          "name": "--min-entropy",
+          "type": "float",
+          "required": false,
+          "desc": "entropy gate for generic assignments (default 3.2)"
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "filesScanned": "int",
+          "findingCount": "int",
+          "summary": "object",
+          "findings": "array"
+        }
+      }
+    },
+    "payload": {
+      "tool": "(builtin)",
+      "vendored": null,
+      "runner": "scripts/scan.py",
+      "pure_stdlib": true,
+      "note": "Zero-dependency. Provider patterns are specific/high-confidence; the generic catch is entropy-gated + placeholder-filtered to limit noise. Values are redacted (prefix…suffix [len]); private keys report presence only. Emits SECRET.* atoms."
+    }
+  },
+  "shellcode-stub": {
+    "name": "Shellcode Stub Wrapper",
+    "description": "CONSTRUCT: wrap a raw shellcode blob into a runnable native PoC — a tiny C loader compiled with clang, whose exit code is the shellcode's return value. --os picks the loader: posix (mmap RW → memcpy → mprotect RX → call, default) or windows (VirtualAlloc RWX → memcpy → call → ExitProcess). --emit c dumps just the loader source. The last link in the write chain: asm-assemble → shellcode-stub → exec-observe (native) or qiling-emulate (cross-arch/cross-OS). Builds the exe; does NOT run it.",
+    "version": "0.1.0",
+    "kind": "construct",
+    "capabilities": [
+      "wrap-shellcode",
+      "construct",
+      "build-native"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ for the runner."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 1,
+      "notes": "CONSTRUCT skill — it BUILDS a PoC executable around the shellcode; it never runs it. The produced binary runs the shellcode when YOU run it — that's the dynamic tier (exec-observe, consent-gated) or a contained emulator (qiling-emulate). `--emit exe` needs clang (checked at runtime, honest error if absent); `--emit c` needs nothing but python3. `--os posix` (default) = mmap/mprotect loader for Linux/macOS; `--os windows` = VirtualAlloc+ExitProcess loader, default target x86_64-w64-mingw32, needs a mingw-w64 sysroot (runtime-checked — honest failure + install hint if absent). Both loaders' exit codes equal the shellcode's return value."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "shellcode",
+          "type": "file",
+          "required": false,
+          "desc": "raw shellcode blob (or use --hex)"
+        },
+        {
+          "name": "--hex",
+          "type": "str",
+          "required": false,
+          "desc": "shellcode as a hex string instead of a file"
+        },
+        {
+          "name": "--emit",
+          "type": "enum",
+          "required": false,
+          "desc": "exe (compiled PoC, needs clang) | c (loader source only)",
+          "choices": [
+            "exe",
+            "c"
+          ]
+        },
+        {
+          "name": "--os",
+          "type": "enum",
+          "required": false,
+          "desc": "loader template: posix (mmap/mprotect, default) | windows (VirtualAlloc+ExitProcess)",
+          "choices": [
+            "posix",
+            "windows"
+          ]
+        },
+        {
+          "name": "--out",
+          "type": "str",
+          "required": false,
+          "desc": "output path (default derived)"
+        },
+        {
+          "name": "--arch",
+          "type": "str",
+          "required": false,
+          "desc": "-arch for the stub compile (clang/darwin)"
+        },
+        {
+          "name": "--target",
+          "type": "str",
+          "required": false,
+          "desc": "cross-compile triple — needs a cross sysroot (see --cflags)"
+        },
+        {
+          "name": "--cflags",
+          "type": "str",
+          "required": false,
+          "desc": "extra clang flags (e.g. --sysroot=… -fuse-ld=lld for cross builds)"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "emit": "string",
+          "os": "string",
+          "out": "string|null",
+          "size": "int|null",
+          "shellcodeLen": "int",
+          "diagnostics": "string?",
+          "hint": "string?"
+        }
+      }
+    },
+    "payload": {
+      "tool": "clang",
+      "source": "https://clang.llvm.org",
+      "vendored": null,
+      "runner": "scripts/run.py",
+      "note": "BYO clang for --emit exe (or --emit c and hand the source to cc-build). Completes the CONSTRUCT chain: asm-assemble --out sc.bin → shellcode-stub sc.bin --out poc → exec-observe/qiling-emulate. The loader exit code is the shellcode's return value, so a `mov w0,#42; ret` PoC exits 42 — easy to assert (verified end-to-end). `--os posix` (default) native host-arch build is the guaranteed path; a cross-OS --target needs a cross sysroot/toolchain (pass it via --cflags, e.g. --sysroot=… -fuse-ld=lld) — without one the link fails honestly. `--os windows` defaults to x86_64-w64-mingw32 and needs the mingw-w64 headers + sysroot (`brew install mingw-w64` on macOS) — the runner sniffs the failure and prints the install hint; cross-OS PoCs are then detonated under qiling-emulate with a Windows rootfs."
+    }
+  },
+  "syscall-trace": {
+    "name": "Syscall Tracer",
+    "description": "DYNAMIC: run a target under a syscall tracer (strace on Linux, dtruss on macOS) and summarize its behaviour — files opened, network connects, processes exec'd, and a syscall histogram. EXECUTES the target; consent-gated. dtruss needs root + a permissive SIP.",
+    "version": "0.1.0",
+    "capabilities": [
+      "syscall-trace",
+      "behavioral-trace",
+      "dynamic-analysis"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ for the runner."
+      },
+      {
+        "tool": "strace/dtruss",
+        "check": [
+          "sh",
+          "-c",
+          "command -v strace || command -v dtruss"
+        ],
+        "install_hint": "Install strace (Linux). On macOS dtruss ships but needs root + a permissive SIP."
+      }
+    ],
+    "safety": {
+      "executes_input": "full",
+      "network": "target-controlled",
+      "tier": 3,
+      "notes": "DYNAMIC — the tracer runs the target natively; it can do anything the host allows. Consent-gated (--allow-dynamic; runner also checks REKIT_ALLOW_DYNAMIC=1/--yes-i-consent). Timeout-bounded. Isolation is the operator's choice — run in a disposable VM / analysis box."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "target",
+          "type": "file",
+          "required": true,
+          "desc": "executable/script to trace"
+        },
+        {
+          "name": "--timeout",
+          "type": "int",
+          "required": false,
+          "desc": "seconds before kill (default 30)"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "tool": "string",
+          "exitCode": "int|null",
+          "syscallHistogram": "object",
+          "filesOpened": "array",
+          "network": "array",
+          "execs": "array"
+        }
+      }
+    },
+    "payload": {
+      "tool": "strace / dtruss",
+      "source": "https://strace.io",
+      "vendored": null,
+      "runner": "scripts/run.py",
+      "note": "BYO tracer on PATH. The core behavioral dynamic skill; complements exec-observe (surface only) and emulate-code (contained). Feed the recovered files/network into ioc-extract for reporting."
+    }
+  },
+  "unpack": {
+    "name": "Archive Unpacker (recursive, safe)",
+    "description": "Recursively extract archives to a fixpoint: zip / tar(.gz/.bz2/.xz) / gz / bz2 / xz / asar (Electron) / ar / .deb with the pure-stdlib core, 7z and RAR via an external CLI (7z/7za/7zz, unar) when present. Walks the output for nested archives and extracts those too. Guards against zip-slip (path traversal) and decompression bombs (byte budget). Extraction is not execution — contents are written, never run.",
+    "version": "0.1.0",
+    "capabilities": [
+      "unpack-archive",
+      "extract-recursive"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ (3.12+ enables tarfile's safe 'data' filter). Pure stdlib for zip/tar/gz/bz2/xz."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 1,
+      "notes": "Trusted extractor over untrusted bytes. Writes only inside the output dir; blocks path-traversal (zip-slip) and caps total/per-file output (decompression-bomb guard). 7z/RAR shell out to a trusted CLI over the untrusted archive. Never runs extracted content."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/unpack.py"
+      ],
+      "args": [
+        {
+          "name": "input",
+          "type": "file",
+          "required": true,
+          "desc": "archive to extract"
+        },
+        {
+          "name": "outdir",
+          "type": "dir",
+          "required": true,
+          "desc": "output directory"
+        },
+        {
+          "name": "--max-depth",
+          "type": "int",
+          "required": false,
+          "desc": "nested-archive recursion depth (default 8)"
+        },
+        {
+          "name": "--max-bytes",
+          "type": "int",
+          "required": false,
+          "desc": "total extracted-bytes budget (default 512 MiB)"
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "json",
+        "fields": {
+          "ok": "bool",
+          "format": "string",
+          "extractedTo": "string",
+          "fileCount": "int",
+          "nestedArchives": "array",
+          "skipped": "array",
+          "toolsMissing": "array"
+        }
+      }
+    },
+    "payload": {
+      "tool": "(builtin + optional CLI)",
+      "vendored": null,
+      "runner": "scripts/unpack.py",
+      "pure_stdlib": true,
+      "note": "Pure-stdlib core (zip/tar/gz/bz2/xz), no vendored deps. 7z/RAR route to 7z/7za/7zz/unar on PATH with honest degradation (py7zr was rejected: it pulls native, python-ABI-locked deps that break the portable-vendored model). Feeds pyc-decompile / the analyzers on the revealed tree."
+    }
+  },
+  "yara-scan": {
+    "name": "YARA Scanner",
+    "description": "Scan a file or directory with YARA rules (classic yara or the newer yara-x). Ships a small high-signal starter rule pack; point --rules at a real corpus (YARA-Rules, signature-base, your own) for serious coverage. Read-only — matches patterns, never runs the target. Prereq-gated on the yara CLI with honest degradation.",
+    "version": "0.1.0",
+    "capabilities": [
+      "scan-yara",
+      "signature-scan",
+      "detect-malware"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ for the runner."
+      },
+      {
+        "tool": "yara",
+        "check": [
+          "yara",
+          "--version"
+        ],
+        "install_hint": "Install yara (https://virustotal.github.io/yara/) or yara-x (https://virustotal.github.io/yara-x/) and put it on PATH."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 1,
+      "notes": "Trusted matcher (yara) over untrusted bytes — pattern matching only, never execution. Timeout-bounded. (Rules can invoke modules; the bundled starter pack uses only strings/hex/regex.)"
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "input",
+          "type": "path",
+          "required": true,
+          "desc": "file OR directory to scan"
+        },
+        {
+          "name": "--rules",
+          "type": "path",
+          "required": false,
+          "desc": "rules file/dir (default: bundled starter.yar)"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "tool": "string",
+          "rules": "string",
+          "matchCount": "int",
+          "matches": "array"
+        }
+      }
+    },
+    "payload": {
+      "tool": "yara",
+      "source": "https://virustotal.github.io/yara/",
+      "vendored": "rules/starter.yar",
+      "runner": "scripts/run.py",
+      "note": "BYO yara/yara-x CLI on PATH (native tool; not bundled). We DO bundle a starter rule pack (rules/starter.yar): embedded/base64 PE, UPX, PHP webshell, Windows exec/download cradle, curl|sh. Bring a full corpus via --rules. Dispatcher prereq gate = honest degradation."
+    }
+  }
+}

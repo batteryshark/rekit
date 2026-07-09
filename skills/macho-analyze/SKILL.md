@@ -1,3 +1,8 @@
+---
+name: macho-analyze
+description: "Static triage of Mach-O binaries (macOS/iOS executables, dylibs, bundles, kexts) with macholib: arch/fat slices, file type, PIE, linked dylibs, RPATH, code-signature presence, and encryption (LC_ENCRYPTION_INFO). Emits BINARY.* atoms. Reads structure only — never runs the binary."
+---
+
 # Mach-O Binary Analyzer
 
 Static triage of Mach-O binaries (macOS/iOS executables, `.dylib`, bundles, kexts)

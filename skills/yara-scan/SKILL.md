@@ -1,3 +1,8 @@
+---
+name: yara-scan
+description: "Scan a file or directory with YARA rules (classic yara or the newer yara-x). Ships a small high-signal starter rule pack; point --rules at a real corpus (YARA-Rules, signature-base, your own) for serious coverage. Read-only — matches patterns, never runs the target. Prereq-gated on the yara CLI with honest degradation."
+---
+
 # YARA Scanner
 
 Scan a file or directory with [YARA](https://virustotal.github.io/yara/) rules — the
