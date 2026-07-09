@@ -1,6 +1,6 @@
 ---
 name: gitops
-description: "Drive git through plain verbs — clone, status, commit, branch, switch, stash, push, pull, remote-add, worktree-add/list/remove, undo, discard, reset-hard — for harnesses or smaller models that can't or shouldn't hand-write git commands, refspecs, or worktree plumbing. Every op runs git non-interactively and returns ONE structured JSON result (branch, ahead/behind, staged files, new commit hash, ...), so the caller reasons about repo state without parsing git output. Data-loss ops (discard, reset-hard, worktree-remove, force push) refuse unless an explicit --force is passed. Use when an agent needs to commit/branch/stash/push or set up a worktree but you don't want it improvising raw git. Operates on your own trusted repo; never executes analysed samples."
+description: "Drive git through plain verbs — clone, status, commit, branch, switch, stash, push, pull, remote-add, merge, cherry-pick, tag, worktree-add/list/remove, undo, discard, reset-hard — for harnesses or smaller models that can't or shouldn't hand-write git commands, refspecs, or worktree plumbing. Every op runs git non-interactively and returns ONE structured JSON result (branch, ahead/behind, staged files, new commit hash, ...), so the caller reasons about repo state without parsing git output. Data-loss ops (discard, reset-hard, worktree-remove, force push) refuse unless an explicit --force is passed. Use when an agent needs to commit/branch/stash/push or set up a worktree but you don't want it improvising raw git. Operates on your own trusted repo; never executes analysed samples."
 ---
 
 # Git Operations
@@ -52,6 +52,10 @@ Add `-C <dir>` to any op to target a repo other than the current directory.
 | `clone <url> [dir] [--branch B] [--depth N]` | clone a remote repo into a new directory |
 | `remote-add <url> [--name origin]` | add a remote to the current repo (default name `origin`) |
 | `remotes` | list configured remotes (name → url) |
+| `merge <branch> [--no-ff] [-m msg]` / `merge --abort` | merge a branch into the current one; conflicts come back as `{conflicts:[...]}` |
+| `cherry-pick <commit>` / `cherry-pick --abort` | apply one commit onto the current branch |
+| `tag <name> [-m msg] [--ref] [--delete] [--push]` | create (annotated if `-m`), delete, or push a tag |
+| `tags` | list tags (newest first) |
 | `worktree-add <path> (--branch B \| --new-branch B [--start])` | check a branch out into another directory |
 | `worktree-list` / `worktree-remove <path> --force` | list / remove worktrees |
 | `undo` | undo the **last commit but keep its changes** (soft reset — safe) |
