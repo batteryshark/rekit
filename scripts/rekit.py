@@ -552,7 +552,7 @@ def cmd_mcp(args) -> int:
     scripts/rekit_mcp.py, which is a pure-stdlib export adapter: one MCP tool per
     skill, each tool call is literally `rekit run <id> <args>` (same prereq +
     dynamic-consent gates as the CLI). Import is deferred so `rekit list` etc.
-    never pay for it. See docs/POSITIONING.md §6."""
+    never pay for it."""
     import importlib
     # rekit_mcp.py is a sibling module; ensure this dir is importable.
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -623,8 +623,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     # Export surface: expose the whole catalog as ONE MCP server (one tool per
     # skill, schemas from entry.args). This is rekit speaking MCP as an output;
-    # it is not an MCP client and does not host third-party servers. See
-    # docs/POSITIONING.md §6. The long-lived server loop lives in rekit_mcp.py.
+    # it is not an MCP client and does not host third-party servers. The
+    # long-lived server loop lives in rekit_mcp.py.
     mcp = sub.add_parser("mcp",
                          help="serve the skill catalog over MCP (one tool per skill)")
     mcp.add_argument("--allow-dynamic", action="store_true",

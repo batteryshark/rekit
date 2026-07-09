@@ -32,7 +32,7 @@ _CAP = {
     "network": ("CFNetwork", "Network.framework", "libcurl", "libnetwork",
                 "SystemConfiguration"),
     "crypto":  ("Security.framework", "libcrypto", "CommonCrypto", "libssl"),
-    "exec":    ("libobjc",),  # placeholder; refined by symbol pass later
+    "exec":    ("libobjc",),  # rough proxy: libobjc implies dynamic dispatch; imported symbols judge exec more precisely
 }
 _MH_PIE = 0x200000
 
