@@ -1,3 +1,8 @@
+---
+name: hex-view
+description: "Non-interactive hex dump of a file or byte range (offset + hex + ASCII), with total size and sha256. Pure-Python stdlib, no dependencies. Reads bytes only — never executes the input."
+---
+
 # Hex Viewer
 
 Non-interactive hex dump of a file or byte range — offset + hex + ASCII, with the

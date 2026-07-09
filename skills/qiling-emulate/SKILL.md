@@ -1,3 +1,8 @@
+---
+name: qiling-emulate
+description: "Emulate a FULL binary (PE/ELF/Mach-O/…) with the Qiling framework: loads the program and emulates the OS/syscalls against a BYO rootfs, so a Linux ELF or Windows PE can be detonated on this host cross-arch/cross-OS WITHOUT native execution or a VM. Contained: syscalls hit Qiling's emulation, not the host kernel. Complements emulate-code (raw shellcode, no OS) and exec-observe (native run)."
+---
+
 # Binary Emulator (Qiling)
 
 **Contained tier — the binary runs on Qiling's *emulated* OS, not the host.** Like

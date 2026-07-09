@@ -1,0 +1,111 @@
+{
+  "_comment": "rekit's OWN requirements (the dispatcher + the `rekit install` build path + a recommended analysis-workstation baseline). Distinct from per-skill prerequisites, which live in the central registry.json (each skill's `prerequisites`). Each tool uses the same check/min_version schema as a skill prereq, so the dispatcher's check_prereq() handles these unchanged. Per-platform `install` commands are PRINTED by `rekit setup` and never run automatically.",
+  "_tiers": {
+    "base": "rekit cannot run without these (dispatcher is python3 + stdlib; shim+build.sh are bash).",
+    "build": "needed by `rekit install` to vendor skill runtimes. Advisory — missing just means those skills can't be built, not that rekit is broken.",
+    "recommended": "agent/workstation niceties. No skill strictly requires these; they make a fresh box a good place to do RE/triage."
+  },
+
+  "base": [
+    {
+      "tool": "python3",
+      "min_version": "3.8",
+      "check": ["python3", "--version"],
+      "why": "the dispatcher (scripts/rekit.py) is pure stdlib",
+      "install": {
+        "macos": "brew install python@3.12",
+        "linux": "sudo apt update && sudo apt install -y python3 python3-pip",
+        "windows": "# run inside WSL2, then: sudo apt install -y python3 python3-pip"
+      }
+    },
+    {
+      "tool": "bash",
+      "check": ["bash", "--version"],
+      "why": "the bin/rekit shim and every scripts/build.sh are bash",
+      "install": {
+        "macos": "# preinstalled (ships 3.2; fine). For a newer bash: brew install bash",
+        "linux": "# preinstalled with the distro",
+        "windows": "# provided by the WSL2 distro"
+      }
+    }
+  ],
+
+  "build": [
+    {
+      "tool": "npm",
+      "min_version": "9",
+      "check": ["npm", "--version"],
+      "why": "vendoring webcrack (js-deobfuscate). Only build-time.",
+      "builds": ["js-deobfuscate"],
+      "install": {
+        "macos": "brew install node",
+        "linux": "sudo apt install -y nodejs npm   # or use nvm for a current node",
+        "windows": "# inside WSL2: sudo apt install -y nodejs npm   (or nvm)"
+      }
+    },
+    {
+      "tool": "uv",
+      "check": ["uv", "--version"],
+      "why": "vendoring pure-python deps via `uv pip --target` (the 4 binary analyzers, pyc-decompile, emulate-code, qiling-emulate). Only build-time.",
+      "builds": ["dotnet-analyze", "elf-analyze", "pe-analyze", "macho-analyze", "pyc-decompile", "emulate-code", "qiling-emulate"],
+      "install": {
+        "macos": "brew install uv",
+        "linux": "curl -LsSf https://astral.sh/uv/install.sh | sh",
+        "windows": "# inside WSL2: curl -LsSf https://astral.sh/uv/install.sh | sh   (native PS: irm https://astral.sh/uv/install.ps1 | iex)"
+      }
+    }
+  ],
+
+  "recommended": [
+    {
+      "tool": "rg",
+      "check": ["rg", "--version"],
+      "why": "fast content search; most agents prefer it over grep",
+      "install": {
+        "macos": "brew install ripgrep",
+        "linux": "sudo apt install -y ripgrep",
+        "windows": "# inside WSL2: sudo apt install -y ripgrep"
+      }
+    },
+    {
+      "tool": "git",
+      "check": ["git", "--version"],
+      "why": "versioning, cloning rule packs",
+      "install": {
+        "macos": "brew install git   # or: xcode-select --install",
+        "linux": "sudo apt install -y git",
+        "windows": "# inside WSL2: sudo apt install -y git"
+      }
+    },
+    {
+      "tool": "curl",
+      "check": ["curl", "--version"],
+      "why": "fetch samples / rule packs",
+      "install": {
+        "macos": "# preinstalled",
+        "linux": "sudo apt install -y curl",
+        "windows": "# inside WSL2: sudo apt install -y curl"
+      }
+    },
+    {
+      "tool": "jq",
+      "check": ["jq", "--version"],
+      "why": "parse the JSON result objects skills emit",
+      "install": {
+        "macos": "brew install jq",
+        "linux": "sudo apt install -y jq",
+        "windows": "# inside WSL2: sudo apt install -y jq"
+      }
+    },
+    {
+      "tool": "file",
+      "check": ["file", "--version"],
+      "why": "quick format ID (bin-triage has its own, but `file` is handy at the shell)",
+      "install": {
+        "macos": "# ships with Xcode Command Line Tools: xcode-select --install",
+        "linux": "sudo apt install -y file",
+        "windows": "# inside WSL2: sudo apt install -y file"
+      }
+    }
+  ]
+}

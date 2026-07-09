@@ -1,3 +1,8 @@
+---
+name: unpack
+description: "Recursively extract archives to a fixpoint: zip / tar(.gz/.bz2/.xz) / gz / bz2 / xz / asar (Electron) / ar / .deb with the pure-stdlib core, 7z and RAR via an external CLI (7z/7za/7zz, unar) when present. Walks the output for nested archives and extracts those too. Guards against zip-slip (path traversal) and decompression bombs (byte budget). Extraction is not execution — contents are written, never run."
+---
+
 # Archive Unpacker (recursive, safe)
 
 Recursively extract archives to a fixpoint — safely, on untrusted input. Pure-stdlib

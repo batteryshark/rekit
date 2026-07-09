@@ -25,6 +25,7 @@ useful next.
 | `jvm-decompile` | apk/dex/jar/class → Java | jadx (BYO) |
 | `dotnet-decompile` | .NET IL → C# | ilspycmd (BYO) |
 | `native-decompile` | ELF/PE/Mach-O → C (rizin `pdg`) | rizin (BYO) |
+| `r2-recon` | cross-format native recon — r2 headless JSON (info/sections+entropy/imports/funcs/strings) → `BINARY.*` atoms | r2 (BYO) |
 | `binwalk-carve` | firmware / embedded-file extraction | binwalk (BYO) |
 | `ghidra-decompile` | full Ghidra headless decompile (hard targets) | analyzeHeadless (BYO) |
 | `yara-scan` | YARA signature scan + starter rule pack | yara (BYO) |
@@ -39,8 +40,8 @@ useful next.
 | `asm-assemble` 🔨 | CONSTRUCT: assemble asm → bytes (hex/C-array/raw) — x64/x86/arm64/arm | clang/LLVM (BYO) · python3 |
 | `shellcode-stub` 🔨 | CONSTRUCT: wrap raw shellcode → runnable native PoC (`--os posix` mmap/mprotect \| `--os windows` VirtualAlloc+ExitProcess) | clang (BYO) · python3 |
 
-**30 skills**, two axes. **`kind`** = *what it does to the world*: **analyze** (read a
-target — 27) vs **construct** 🔨 (produce an artifact — 3: `cc-build`, `asm-assemble`,
+**31 skills**, two axes. **`kind`** = *what it does to the world*: **analyze** (read a
+target — 28) vs **construct** 🔨 (produce an artifact — 3: `cc-build`, `asm-assemble`,
 `shellcode-stub`).
 **`safety.executes_input`** = *does it run the target*: 21 **static** (read-only) + 2
 **contained** (`emulate-code` = Unicorn raw bytes/no OS; `qiling-emulate` = Qiling full
@@ -66,11 +67,15 @@ loader (default target `x86_64-w64-mingw32`) — its source generates without a 
 the `.exe` needs a mingw-w64 sysroot (honest failure + install hint when absent), and the
 resulting PE detonates under `qiling-emulate --rootfs x8664_windows`.
 
-Dispatcher commands: `list · search · doctor · info · run · install · caps`.
+Dispatcher commands: `list · search · doctor · info · run · install · setup · caps`.
+**Platform requirements:** rekit's own base/build/recommended tiers live in
+`requirements.json` (distinct from per-skill prereqs); `rekit doctor` reports them and
+`rekit setup [--tier all]` prints platform-appropriate install commands for the missing ones
+(never runs them — see `docs/PLATFORMS.md`). macOS/Linux primary; Windows via WSL2.
 **`rekit search <query>`** (keyword/capability, `--dynamic|--static|--tier|--capability`,
 `--json`) is the find-a-skill entry point as the roster grows toward hundreds.
 **~22 run out of the box** (host-dependent — construct skills need clang); BYO-tool
-skills (jadx/ilspycmd/rizin/binwalk/ghidra/yara + tracers
+skills (jadx/ilspycmd/rizin/r2/binwalk/ghidra/yara + tracers
 strace-or-dtruss/tcpdump/frida-trace) degrade honestly via the prereq gate.
 
 > **Packaging note:** `asm-assemble` is clang/LLVM-backed, *not* keystone —
@@ -86,7 +91,7 @@ x8664_windows`).
 
 ## Queued — remaining
 
-Static tier is feature-complete (21). Dynamic tier built: kernel view
+Static tier is feature-complete (22). Dynamic tier built: kernel view
 (`syscall-trace`), API/library view (`frida-trace`), network view (`net-capture`),
 plus contained `emulate-code` (Unicorn) and plain `exec-observe`. Behavioral coverage
 now spans kernel + library + network. Remaining dynamic ideas as needed:

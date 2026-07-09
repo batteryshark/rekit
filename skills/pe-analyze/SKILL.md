@@ -1,3 +1,8 @@
+---
+name: pe-analyze
+description: "Static triage of Windows PE binaries (EXE/DLL) with pefile: machine/arch, subsystem, entry/imagebase, sections + per-section entropy (packing) and RWX flags, imports classified by capability (inject/exec/network/anti-debug/persist/crypto), exports, TLS callbacks, overlay, and Authenticode presence. Emits BINARY.* atoms. Reads structure only — never runs the binary."
+---
+
 # PE Binary Analyzer
 
 Static triage of Windows PE binaries (EXE, DLL, SYS, `.node`) with

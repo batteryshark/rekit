@@ -14,9 +14,10 @@ rekit. It splits into a **static tier** (today) and a **dynamic tier** (growth).
 
 ## 1. What rekit is
 
-A kit. Each capability is a **self-contained skill**: a folder with a `skill.json`
-manifest (id, capabilities, prerequisites, safety, entry), a `SKILL.md`, and its own
-runner — a pure-stdlib script or a vendored tool. Plus a thin **dispatcher** for
+A kit. Each capability is a **skill**: a folder with a `SKILL.md` doc + its own runner
+(a pure-stdlib script or a vendored tool). The machine manifests (capabilities,
+prerequisites, safety, entry) live in one central `registry.json`. Plus a thin
+**dispatcher** for
 discovery and use: `list` / `doctor` / `run` / `info` / `install` / `caps`.
 
 Properties that make it a *kit*, not a framework:
@@ -74,7 +75,6 @@ Contract-wise this needs nothing new — the `safety` fields already carry it; a
 just keys its consent policy off them.
 
 ## 4. Boundary: `unmask` / MCD is a separate project
-
 Stated plainly so it doesn't drift:
 
 - `unmask`/MCD is **its own project and its own effort** — its own graph + SQLite ledger
@@ -84,10 +84,63 @@ Stated plainly so it doesn't drift:
   explicit opt-in, reach for a rekit tool someday — but there is no architectural
   coupling, and rekit is not "for" unmask.
 
-## 5. Status & decisions
+## 5. MCP: rekit exports, the harness hosts
+
+The MCP question resolves cleanly once you name the axis rekit is built on. A
+rekit skill is a **stateless one-shot** — one `entry.command` + argv → one JSON
+result, process dies. An MCP server is a **live session** — a long-lived
+JSON-RPC process exposing N tools that share state (open a DB → query → close;
+`open_database` → `wait_for_analysis` → `decompile_function` → `get_xrefs_to`).
+Those are *different axes*, not competitors: rekit is the capability axis
+(one-shot, declared safety, offline, vendored); MCP is the session axis
+(stateful, multi-turn, huge surface). A 200-tool IDA server is only valuable
+because its tools share one live IDA process — flatten it into 200 rekit skills
+and each re-opens IDA (minutes each); collapse it into one skill and the tool
+surface becomes an opaque blob.
+
+So the stance is: **rekit speaks MCP as an *output*, and the harness
+(rekit-factory) imports third-party MCP *servers* — rekit does neither host nor
+client third-party servers itself.**
+
+- **`rekit mcp` is the sole export adapter.** It exposes the whole skill catalog
+  as ONE MCP server — one tool per skill, JSON Schema derived from
+  `entry.args` (positionals → required string props; `--opt int/str/enum` → typed
+  props, enums parsed from `desc`; `--flag` → boolean). A tool call is literally
+  `rekit run <id> <args>` under the hood, so the prereq gate and the
+  dynamic-consent gate are IDENTICAL to the CLI — zero drift. The adapter is
+  pure stdlib and adds no MCP-*client* plumbing to rekit. This lets any
+  MCP-native harness (rekit-factory, Claude, opencode) consume the entire kit as
+  progressive-disclosure tools with zero per-skill wiring.
+- **Third-party MCP servers are wired by the harness, never vendored into rekit.**
+  MCP-client plumbing (a stdio multiplexer, server lifecycle, schema cache,
+  connection pooling) is transport for *live sessions* — a runtime concern, and
+  rekit-factory owns the runtime. rekit has no reason to carry it. When you
+  depend on an upstream server (e.g. the IDA MCP), you run it as an MCP server
+  at the harness layer alongside `rekit mcp`, and the agent composes both.
+- **Convert-to-skill rule:** convert a third-party MCP server to a rekit skill
+  **iff it's thin and stateless** (one CLI call captures its full value) — then
+  pin it at build time and re-run the converter on upstream bumps, exactly like
+  any `scripts/build.sh`. **Never convert** a stateful / large-surface server
+  (IDA, a debugger, browser automation, a DB session) — there is no
+  skill-shaped representation that preserves its value.
+- **Tool search needs no unification.** rekit searches skills (`rekit search` /
+  `caps`, tens→hundreds); a server like IDA searches its own tools. The
+  200-tool problem only exists *inside* one server, where progressive disclosure
+  is already native. Each layer searches itself; the agent asks the right layer.
+  There is no 200+N federated catalog to build.
+- **Consent and honest degradation carry through unchanged.** A ⚡ dynamic skill
+  is consent-gated over MCP exactly as on the CLI: `rekit mcp` hides nothing
+  (the tool is listed so the agent knows the capability exists) but a call
+  returns an `isError` pointing to `rekit mcp --allow-dynamic` until the operator
+  consents — mirroring `rekit run --allow-dynamic`. A skill whose prereq is
+  missing is still listed, but its tool description is annotated
+  `[unavailable on this host — missing prereq: …]` and a call returns the
+  install hint — rekit never silently skips.
+
+## 6. Status & decisions
 
 - **Rename — DONE.** `skillpacks` → `rekit` (dir + `rekit` CLI); the old runtime kernel
-  → **`rekit-factory`**. The `skill.json` contract is now *the* rekit contract.
+  → **`rekit-factory`**. The `registry.json` + `SKILL.md` contract is now *the* rekit contract.
 - **Dynamic-tier consent — DONE.** A skill with `safety.executes_input: full` is gated:
   `rekit run --allow-dynamic <skill>` (the dispatcher passes consent to the runner via
   `REKIT_ALLOW_DYNAMIC=1`; runners also refuse direct calls without it). `rekit list`
@@ -99,6 +152,16 @@ Stated plainly so it doesn't drift:
   isolation. None is required and none is wired yet — OpenShell is the leading candidate
   but undecided.
 - **Boundary holds:** `unmask`/MCD stays a completely separate project.
+- **MCP stance — DECIDED + built.** `rekit mcp` is the sole export adapter (one
+  MCP tool per skill, pure-stdlib JSON-RPC-over-stdio in `scripts/rekit_mcp.py`).
+  rekit neither hosts nor clients third-party MCP servers — that session-axis
+  wiring belongs to the harness (rekit-factory). Convert-to-skill rule:
+  thin/stateless only. See §5 above.
+- **Enum `choices` — DONE.** `entry.args` of `type: enum` now carry a
+  machine-readable `choices` array (documented in `SKILL-CONTRACT.md`), so
+  `rekit mcp` emits real JSON Schema `enum`s from the manifest instead of parsing
+  `desc` strings. All 34 enum args across the 31 skills are populated; the
+  adapter keeps a best-effort `desc` parser as a fallback for future skills.
 
 ### Still open
 - Which isolation provider to wire first (if any) — deferred until there's a concrete need.

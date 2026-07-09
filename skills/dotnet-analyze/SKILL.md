@@ -1,3 +1,8 @@
+---
+name: dotnet-analyze
+description: "Static triage of .NET / CLR managed assemblies (.dll/.exe) with dnfile: runtime version, assembly + referenced assemblies, type/method counts, IL-only vs mixed-mode, strong-name signing, unmanaged module refs, and the P/Invoke (DllImport) native-API surface classified by capability. Emits DOTNET.* atoms. Parses CLR metadata only — never loads or runs the assembly."
+---
+
 # .NET Assembly Analyzer
 
 Static triage of .NET / CLR managed assemblies (`.dll` / `.exe`) with

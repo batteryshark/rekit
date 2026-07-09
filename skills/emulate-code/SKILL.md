@@ -1,3 +1,8 @@
+---
+name: emulate-code
+description: "Emulate a raw code/shellcode blob on a virtual CPU (x86/x64/arm/arm64) with Unicorn and report the final register state, instruction count, and memory writes. Contained: the bytes run on an emulated CPU, not the host (memory-only; no host syscalls unless wired) — the safe way to 'run' shellcode or an isolated function."
+---
+
 # Code Emulator (Unicorn)
 
 Emulate a raw code / shellcode blob on a virtual CPU and see what it computes — the
