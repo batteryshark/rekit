@@ -11,8 +11,8 @@ frontmatter). The machine manifest for every skill lives in one central
 caller is told exactly what to install — or it skips the skill and records the target
 as *not analysed*. Nothing is ever silently skipped.
 
-[`unmask`](../mcd) is the first consumer (it will wrap these as RE providers), but the
-contract is generic: a skill is a directory + a manifest + a documented invocation.
+The contract is consumer-agnostic: a skill is a directory, a manifest entry in
+`registry.json`, and a documented invocation — any agent or tool can call it.
 
 ```bash
 bin/rekit list                    # what skills exist
@@ -25,7 +25,9 @@ bin/rekit info <id>               # manifest + SKILL.md
 bin/rekit mcp [--allow-dynamic]   # serve the whole catalog over MCP (one tool per skill; export only)
 ```
 
-## The skills (31)
+## The skills
+
+Grouped by what they do; `rekit list` and `rekit caps` are the authoritative catalog.
 
 **Source detection** (pure stdlib, read-only, emit atoms)
 | Skill | What | Prereq |
@@ -51,6 +53,7 @@ bin/rekit mcp [--allow-dynamic]   # serve the whole catalog over MCP (one tool p
 | Skill | What | Prereq |
 |---|---|---|
 | `js-deobfuscate` | unpack obfuscated JS (webcrack, sandboxed) | node |
+| `js-string-decode` | statically decode constant-key XOR / charCode string obfuscation in JS | python3 |
 | `js-sourcemap-extract` | recover original sources from a JS source map | python3 |
 | `pyc-decompile` | `.pyc` → source (decompyle3, 3.7–3.8) | python3 |
 | `jvm-decompile` | `.apk`/`.dex`/`.jar`/`.class` → Java (jadx) | jadx (BYO) |
@@ -64,6 +67,19 @@ bin/rekit mcp [--allow-dynamic]   # serve the whole catalog over MCP (one tool p
 | `unpack` | recursive, safe: zip/tar/gz/bz2/xz/**asar**/**ar·deb** (+7z/rar via CLI) | python3 |
 | `pyinstaller-extract` | carve `.pyc` out of PyInstaller executables | python3 |
 | `binwalk-carve` | carve/extract embedded files from firmware images | binwalk (BYO) |
+
+**PE repair** (Windows — reconstruct dumped or packed PEs)
+| Skill | What | Prereq |
+|---|---|---|
+| `pe-unmap` | convert PE alignment: memory dump → loadable EXE (pe_unmapper) | python3 · Windows binary |
+| `pyscylla` | rebuild a dumped PE's Import Address Table (libscylla) | python3 · Windows binary |
+| `ord-lookup` | resolve Windows DLL ordinal imports → symbol names | python3 |
+
+**Mobile** (dump from a live device)
+| Skill | What | Prereq |
+|---|---|---|
+| `dex-dump` | dump decrypted DEX from a running Android app | adb (BYO device) |
+| `ios-dump` | dump a decrypted iOS app binary (FairPlay) from a jailbroken device | frida (BYO device) |
 
 **Dynamic** ⚡ (run the target to observe behavior; consent-gated via `rekit run --allow-dynamic`)
 | Skill | What | Prereq |
@@ -81,6 +97,11 @@ bin/rekit mcp [--allow-dynamic]   # serve the whole catalog over MCP (one tool p
 | `cc-build` | compile C/C++/ObjC → native (exe/.o/.s/IR), cross-compile | clang/cc/gcc (BYO) · python3 |
 | `asm-assemble` | assemble asm → bytes (hex/C-array/raw) — x64/x86/arm64/arm | clang/LLVM (BYO) · python3 |
 | `shellcode-stub` | wrap raw shellcode → runnable native PoC (`--os posix` mmap/mprotect \| `--os windows` VirtualAlloc+ExitProcess) | clang (BYO) · python3 |
+
+**Workflow** (not RE — a harness convenience)
+| Skill | What | Prereq |
+|---|---|---|
+| `gitops` | drive git through plain verbs (clone/commit/branch/stash/push/worktree/…) for harnesses that don't grok git | git |
 
 ### Chains
 
@@ -125,6 +146,8 @@ tier table and the platform/WSL2 stance.
   (pure-python). Native-ABI-locked python deps are avoided; such tools go through an
   external CLI instead.
 
-See `SKILL-CONTRACT.md` for the manifest spec and `ROADMAP.md` for what's next.
+See [`SKILL-CONTRACT.md`](SKILL-CONTRACT.md) for the manifest spec.
 
-Apache-2.0
+## License
+
+Apache-2.0 — see [LICENSE](LICENSE).

@@ -5,8 +5,8 @@ A read-only, **stateless export adapter**: every rekit skill becomes one MCP
 tool (JSON Schema derived from `entry.args`; safety + consent carried through).
 This is rekit speaking MCP as an *output* surface only — it is NOT an MCP
 *client*, and it does not host third-party MCP servers. The stateful/session
-axis (IDA, debuggers, browser automation) is wired by the harness
-(rekit-factory), not here. See ../docs/POSITIONING.md §6.
+axis (IDA, debuggers, browser automation) is wired by the calling harness,
+not here.
 
 Pure stdlib (rekit's rule). JSON-RPC 2.0 over newline-delimited stdio.
 
