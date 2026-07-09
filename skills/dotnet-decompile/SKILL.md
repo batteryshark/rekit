@@ -1,3 +1,8 @@
+---
+name: dotnet-decompile
+description: "Decompile a .NET / CLR assembly (IL) back to C# with the ilspycmd dotnet tool. Static: reads metadata + IL, never runs the assembly. Prereq-gated on ilspycmd (needs the .NET runtime); honest blind spot with an install hint when absent. Pair with dotnet-analyze for the P/Invoke surface."
+---
+
 # .NET Decompiler
 
 Decompile a .NET / CLR assembly (IL) back to C# with

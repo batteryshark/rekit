@@ -1,8 +1,8 @@
-# Vendored per-skill runtimes are large (native prebuilds) and rebuildable from
+# Vendored per-skill deps are large (native prebuilds) and rebuildable from
 # scripts/build.sh. Ignored for the spike to keep the repo lean/reviewable; when a
-# skill graduates we decide commit-vs-git-lfs for its runtime.
-skills/*/runtime/node_modules/
-skills/*/runtime/site/
+# skill graduates we decide commit-vs-git-lfs for its vendored deps.
+skills/*/scripts/node_modules/
+skills/*/scripts/site/
 
 # Python / OS / tooling
 __pycache__/

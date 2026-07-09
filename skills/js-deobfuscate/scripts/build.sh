@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Vendor webcrack into runtime/node_modules (offline, self-contained, committed).
+# Vendor webcrack into scripts/node_modules (offline, self-contained, committed).
 #
 # Why node_modules and not a single .js: webcrack depends on isolated-vm, a NATIVE
 # addon (it runs the obfuscated string-array decoder inside a secure isolated VM).
@@ -9,13 +9,13 @@
 # tree is portable across the common platforms with no compiler. The user's RUN-time
 # prerequisite stays just `node`.
 #
-# Build-time only (needs npm + network). Re-run to refresh + re-pin. Commit runtime/.
+# Build-time only (needs npm + network). Re-run to refresh + re-pin. Commit scripts/.
 #
 #   WEBCRACK_VERSION=2.16.0 scripts/build.sh
 set -euo pipefail
 
 SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-RT="$SKILL_DIR/runtime"
+RT="$SKILL_DIR/scripts"
 WEBCRACK_VERSION="${WEBCRACK_VERSION:-latest}"
 
 cd "$RT"
@@ -32,4 +32,4 @@ if [ -d "$RT/node_modules/isolated-vm/prebuilds" ]; then
 else
   echo "  (none — isolated-vm will build from source at install; needs a C++ toolchain)"
 fi
-echo "done: runtime/node_modules (webcrack@${RESOLVED}, $(du -sh node_modules | cut -f1))"
+echo "done: scripts/node_modules (webcrack@${RESOLVED}, $(du -sh node_modules | cut -f1))"

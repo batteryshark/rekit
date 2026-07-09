@@ -1,3 +1,8 @@
+---
+name: jvm-decompile
+description: "Decompile Java / Android bytecode (.apk / .dex / .jar / .class) back to Java source with jadx. Static: reads bytecode, never runs it. Prereq-gated on the jadx CLI (which needs a JRE); when jadx is absent the skill reports the honest blind spot with an install hint."
+---
+
 # JVM / Android Decompiler
 
 Decompile Java/Android bytecode (`.apk` / `.dex` / `.jar` / `.class`) back to Java

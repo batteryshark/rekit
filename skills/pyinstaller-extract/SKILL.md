@@ -1,3 +1,8 @@
+---
+name: pyinstaller-extract
+description: "Carve the Python out of a PyInstaller executable: locate the appended CArchive, extract every entry, and unpack the inner PYZ into individual .pyc files with reconstructed headers — ready for pyc-decompile. Pure stdlib. Static: parses archive structures and marshal.loads the PYZ TOC (deserialization, not execution); never runs the executable or the extracted code."
+---
+
 # PyInstaller Extractor
 
 Carve the Python back out of a **PyInstaller** executable. Pure-stdlib, static,

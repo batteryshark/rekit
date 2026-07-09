@@ -1,3 +1,8 @@
+---
+name: frida-trace
+description: "DYNAMIC: spawn a target under Frida and trace a curated set of network/exec/file/crypto API calls (dynamic instrumentation, no debugger). Logs the calls the sample makes. EXECUTES the target; consent-gated. BYO frida-trace (pip install frida-tools)."
+---
+
 # Frida API Tracer
 
 **⚡ Dynamic tier — Frida spawns and runs the target.** Run only where you don't mind
