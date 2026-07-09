@@ -171,7 +171,8 @@ def assess(findings: list) -> str:
 def main(argv: list[str]) -> int:
     p = argparse.ArgumentParser(prog="js-covert-scan")
     p.add_argument("input")
-    p.add_argument("--format", choices=["text", "json"], default="text")
+    p.add_argument("--format", choices=["text", "json"], default="json",
+                   help="json is the machine default the RE provider consumes; text for humans")
     p.add_argument("--max-bytes", type=int, default=_MAX_BYTES)
     args = p.parse_args(argv[1:])
     if not os.path.exists(args.input):

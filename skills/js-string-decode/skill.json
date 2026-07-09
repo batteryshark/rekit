@@ -1,0 +1,48 @@
+{
+  "id": "js-string-decode",
+  "name": "JavaScript Constant-Key String Decoder",
+  "version": "0.1.0",
+  "description": "Statically decode constant-key XOR / charCode string obfuscation in JavaScript so a downstream scanner can read the hidden strings (C2 URLs, victim domains, timezone names, shell commands). Finds decode sites with regex/heuristics — a `String.fromCharCode(x ^ KEY)` / `x ^ KEY` applied over a STATIC encoded literal (int array, string, or `\\xNN`/`\\uNNNN` blob, incl. a `Buffer.from(p,\"base64\")`/`atob(p)` front transform) — resolves KEY when it is a small int literal OR a variable assigned a small int nearby (best-effort constant propagation), applies the XOR, and writes the recovered plaintext to <outdir>/decoded-strings.js for rescanning. READ-ONLY: reads bytes and does arithmetic; never parses as code or executes the input.",
+  "capabilities": ["decode-strings", "xor-decode"],
+  "prerequisites": [
+    {
+      "tool": "python3",
+      "min_version": "3.8",
+      "check": ["python3", "--version"],
+      "install_hint": "Install Python 3.8+ — pure stdlib (re, base64, mmap), no other dependency."
+    }
+  ],
+  "safety": {
+    "executes_input": "no",
+    "network": "none",
+    "tier": 0,
+    "notes": "Read-only static decode (regex heuristics + XOR arithmetic + base64/escape decoding). Never parses the file as code, imports it, runs a JS engine, or executes any part of it. Complements js-deobfuscate (which runs the decoder in a sandbox) with a zero-execution path for the constant-key case."
+  },
+  "entry": {
+    "command": ["python3", "runtime/decode.py"],
+    "args": [
+      {"name": "input",      "type": "file", "required": true,  "desc": "JavaScript/TypeScript file to decode"},
+      {"name": "outdir",     "type": "dir",  "required": false, "desc": "if given, write recovered plaintext to <outdir>/decoded-strings.js for rescanning"},
+      {"name": "--format",   "type": "enum", "required": false, "desc": "json | text (default json — the machine result the RE provider consumes)", "choices": ["json", "text"]},
+      {"name": "--max-bytes", "type": "int", "required": false, "desc": "cap on bytes read from the input (default 64 MiB)"}
+    ],
+    "result": {
+      "channel": "stdout",
+      "format": "json",
+      "fields": {
+        "ok": "bool",
+        "outputDir": "string|null",
+        "decoded": "array of {key:int, count:int, sample:string} (grouped by key)",
+        "siteCount": "int",
+        "error": "string (only when ok=false)"
+      }
+    }
+  },
+  "payload": {
+    "tool": "(builtin)",
+    "vendored": null,
+    "runner": "runtime/decode.py",
+    "pure_stdlib": true,
+    "note": "Zero-dependency static decoder. Two-phase: (1) detect decoder FUNCTIONS (constant-key XOR-charCode body, optional base64/atob front transform) and decode their call-site payloads, resolving payload/key VARIABLES by nearest-preceding constant assignment; (2) inline sites (arr.map(c=>c^K), s.split('').map(...charCodeAt^K), for-of over an array/string/escape-blob). Emits decoded plaintext to <outdir>/decoded-strings.js as JS string literals so the fold rescans it as DerivedSource. Custom obfuscation is heuristic — see SKILL.md for the shapes it does and does not handle."
+  }
+}
