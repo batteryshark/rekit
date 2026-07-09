@@ -30,7 +30,7 @@ import unicodedata
 _EXTS = {".py", ".pyw", ".pyi"}
 _SKIP_DIRS = {"node_modules", ".git", "dist", "build", ".venv", "venv",
               "__pycache__", ".mypy_cache", ".tox", "site-packages"}
-_MAX_BYTES = 5 * 1024 * 1024
+_MAX_BYTES = 32 * 1024 * 1024
 _MAX_FINDINGS = 1000
 _MAX_FILES = 4000
 
@@ -198,11 +198,15 @@ def main(argv: list[str]) -> int:
     files_scanned = 0
     for path in iter_files(args.input):
         try:
-            if os.path.getsize(path) > _MAX_BYTES:
-                continue
-            text = open(path, "rb").read().decode("utf-8", "replace")
+            with open(path, "rb") as fh:
+                raw = fh.read(_MAX_BYTES + 1)
         except OSError:
             continue
+        if len(raw) > _MAX_BYTES:
+            # Scan the first _MAX_BYTES of an oversized file rather than skip it whole
+            # (a minified/carved bundle can be many MB on one line; skipping blinds us).
+            raw = raw[:_MAX_BYTES]
+        text = raw.decode("utf-8", "replace")
         files_scanned += 1
         scan_text(text, path, findings)
         if len(findings) >= _MAX_FINDINGS:
