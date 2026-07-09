@@ -374,6 +374,74 @@ def op_reset_hard(a):
     ok("reset-hard", ref=a.ref, output=out)
 
 
+def _conflicts(cwd):
+    return _lines(git("diff", "--name-only", "--diff-filter=U", cwd=cwd)[1])
+
+
+def op_tag(a):
+    ensure_repo("tag", a.cwd)
+    if a.delete:
+        rc, out, err = git("tag", "-d", a.name, cwd=a.cwd)
+        if rc != 0:
+            fail("tag", err or out or "could not delete tag")
+        ok("tag", tag=a.name, deleted=True)
+    args = ["tag"] + (["-a", a.name, "-m", a.message] if a.message else [a.name])
+    if a.ref:
+        args += [a.ref]
+    rc, out, err = git(*args, cwd=a.cwd)
+    if rc != 0:
+        fail("tag", err or out or "could not create tag",
+             hint="the tag may already exist — delete it with --delete or pick a new name")
+    result = {"tag": a.name, "annotated": bool(a.message), "created": True}
+    if a.push:
+        prc, pout, perr = git("push", a.remote, a.name, cwd=a.cwd)
+        result["pushed"] = prc == 0
+        if prc != 0:
+            result["pushError"] = perr or pout
+    ok("tag", **result)
+
+
+def op_tags(a):
+    ensure_repo("tags", a.cwd)
+    rc, out, _ = git("tag", "--sort=-creatordate", cwd=a.cwd)
+    ok("tags", tags=_lines(out), count=len(_lines(out)))
+
+
+def op_cherry_pick(a):
+    ensure_repo("cherry-pick", a.cwd)
+    if a.abort:
+        rc, out, err = git("cherry-pick", "--abort", cwd=a.cwd)
+        if rc != 0:
+            fail("cherry-pick", err or out or "no cherry-pick in progress to abort")
+        ok("cherry-pick", aborted=True)
+    if not a.commit:
+        fail("cherry-pick", "specify a commit/ref to cherry-pick (or --abort)")
+    rc, out, err = git("cherry-pick", a.commit, cwd=a.cwd)
+    if rc != 0:
+        fail("cherry-pick", err or out or "cherry-pick failed", conflicts=_conflicts(a.cwd),
+             hint="resolve the conflicts and `gitops commit`, or `gitops cherry-pick --abort`")
+    _, sha, _ = git("rev-parse", "--short", "HEAD", cwd=a.cwd)
+    ok("cherry-pick", pickedFrom=a.commit, newCommit=sha)
+
+
+def op_merge(a):
+    ensure_repo("merge", a.cwd)
+    if a.abort:
+        rc, out, err = git("merge", "--abort", cwd=a.cwd)
+        if rc != 0:
+            fail("merge", err or out or "no merge in progress to abort")
+        ok("merge", aborted=True)
+    if not a.branch:
+        fail("merge", "specify a branch to merge in (or --abort)")
+    args = (["merge"] + (["--no-ff"] if a.no_ff else [])
+            + (["-m", a.message] if a.message else []) + [a.branch])
+    rc, out, err = git(*args, cwd=a.cwd)
+    if rc != 0:
+        fail("merge", err or out or "merge failed", conflicts=_conflicts(a.cwd),
+             hint="resolve the conflicts and `gitops commit`, or `gitops merge --abort`")
+    ok("merge", merged=a.branch, into=current_branch(a.cwd), output=out)
+
+
 def op_init(a):
     args = ["init"] + (["-b", a.initial_branch] if a.initial_branch else []) + [a.path]
     rc, out, err = git(*args)
@@ -455,6 +523,25 @@ def build_parser() -> argparse.ArgumentParser:
     wr = add("worktree-remove", op_worktree_remove, "remove a worktree (needs --force)")
     wr.add_argument("path", help="worktree dir to remove")
     wr.add_argument("--force", action="store_true")
+
+    tg = add("tag", op_tag, "create (or --delete) a tag")
+    tg.add_argument("name", help="tag name")
+    tg.add_argument("-m", "--message", help="annotated-tag message (omit for a lightweight tag)")
+    tg.add_argument("--ref", help="commit to tag (default: HEAD)")
+    tg.add_argument("--delete", action="store_true", help="delete this tag instead of creating it")
+    tg.add_argument("--push", action="store_true", help="also push the tag to the remote")
+    tg.add_argument("--remote", default="origin")
+    add("tags", op_tags, "list tags (newest first)")
+
+    cp = add("cherry-pick", op_cherry_pick, "apply a commit onto the current branch")
+    cp.add_argument("commit", nargs="?", help="commit/ref to cherry-pick")
+    cp.add_argument("--abort", action="store_true", help="abort an in-progress cherry-pick")
+
+    mg = add("merge", op_merge, "merge a branch into the current branch")
+    mg.add_argument("branch", nargs="?", help="branch to merge in")
+    mg.add_argument("--no-ff", action="store_true", help="always create a merge commit")
+    mg.add_argument("-m", "--message", help="merge commit message")
+    mg.add_argument("--abort", action="store_true", help="abort an in-progress merge")
 
     add("undo", op_undo, "undo the last commit but KEEP its changes (safe)")
     dc = add("discard", op_discard, "DESTRUCTIVE: drop uncommitted changes (needs --force)")
