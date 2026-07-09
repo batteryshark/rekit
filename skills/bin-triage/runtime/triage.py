@@ -155,6 +155,75 @@ def scan_embedded(data: bytes) -> list[dict]:
     return out
 
 
+# --- embedded-source carving ------------------------------------------------
+# Single-file executables (Bun, Deno, pkg, nexe, Node SEA) append their application
+# code as (usually transpiled/minified) JavaScript *text* after the native runtime.
+# Carving large contiguous printable-text runs recovers it format-agnostically — no
+# packer parsing, so it survives version changes. Writing is not execution.
+_CARVE_MIN_RUN = 4096                    # smallest printable-text run worth carving
+_CARVE_LARGE = 64 * 1024                 # a run this big is carved even without code hints
+_CARVE_MAX_TOTAL = 128 * 1024 * 1024     # cap total carved bytes
+_CARVE_MAX_REGIONS = 64
+_CARVE_COPY_CHUNK = 4 * 1024 * 1024
+_TEXT_RUN_RE = re.compile(rb"[\x09\x0a\x0d\x20-\x7e]{%d,}" % _CARVE_MIN_RUN)
+_JS_HINTS = (b"function", b"require(", b"module.exports", b"__commonJS", b"__esm",
+             b"=>", b"const ", b"var ", b"import ", b"export ", b"//", b"/*")
+
+
+def _guess_source_ext(sample: bytes) -> str | None:
+    s = sample[:8192]
+    if any(h in s for h in _JS_HINTS):
+        return ".js"
+    if s.lstrip()[:1] in (b"{", b"["):
+        return ".json"
+    return None  # not obviously source
+
+
+def carve_embedded_source(path: str, outdir: str) -> list[dict]:
+    """Carve large printable-text runs (embedded scripts/config) into ``outdir`` for
+    rescanning. Streams via mmap so a multi-hundred-MB executable stays memory-light.
+
+    Regions are carved LARGEST-first, not file-order: a single-file executable's app
+    bundle is a big text run at the tail, and it must not be starved by the many small
+    runtime strings up front (which would exhaust the region/byte budget before we reach
+    it)."""
+    import mmap
+    if os.path.getsize(path) == 0:
+        return []
+    carved: list[dict] = []
+    total = 0
+    with open(path, "rb") as fh:
+        mm = mmap.mmap(fh.fileno(), 0, access=mmap.ACCESS_READ)
+        try:
+            # Pass 1: locate candidate runs (offsets only, no copy) — a run is a candidate
+            # if it looks like source or is large enough to matter on its own.
+            candidates: list[tuple[int, int, int, str]] = []
+            for m in _TEXT_RUN_RE.finditer(mm):
+                start, end = m.start(), m.end()
+                ext = _guess_source_ext(mm[start:start + 8192])
+                if ext is None and (end - start) < _CARVE_LARGE:
+                    continue
+                candidates.append((end - start, start, end, ext or ".txt"))
+            # Pass 2: carve biggest-first, within the region/byte budget.
+            candidates.sort(reverse=True)
+            for size, start, end, ext in candidates:
+                if len(carved) >= _CARVE_MAX_REGIONS or total >= _CARVE_MAX_TOTAL:
+                    break
+                end = min(end, start + (_CARVE_MAX_TOTAL - total))
+                name = f"carved-{len(carved):03d}-off{start:012d}{ext}"
+                with open(os.path.join(outdir, name), "wb") as out:
+                    off = start
+                    while off < end:
+                        n = min(_CARVE_COPY_CHUNK, end - off)
+                        out.write(mm[off:off + n])
+                        off += n
+                carved.append({"file": name, "offset": start, "size": end - start, "ext": ext})
+                total += end - start
+        finally:
+            mm.close()
+    return carved
+
+
 def analyze(path: str, max_bytes: int):
     size = os.path.getsize(path)
     with open(path, "rb") as fh:
@@ -206,7 +275,10 @@ def _atom(atom):
 def main(argv: list[str]) -> int:
     p = argparse.ArgumentParser(prog="bin-triage")
     p.add_argument("input")
-    p.add_argument("--format", choices=["text", "json"], default="text")
+    p.add_argument("outdir", nargs="?", default=None,
+                   help="if given, carve embedded readable source here for rescanning")
+    p.add_argument("--format", choices=["text", "json"], default="json",
+                   help="json is the machine default the RE provider consumes; text for humans")
     p.add_argument("--max-bytes", type=int, default=_MAX_BYTES)
     args = p.parse_args(argv[1:])
     if not os.path.isfile(args.input):
@@ -214,8 +286,18 @@ def main(argv: list[str]) -> int:
         return 2
 
     info, findings = analyze(args.input, args.max_bytes)
+    carved: list[dict] = []
+    if args.outdir:  # atom analysis reads the head; carving scans the whole file (mmap)
+        os.makedirs(args.outdir, exist_ok=True)
+        carved = carve_embedded_source(args.input, args.outdir)
+        if carved:
+            findings.append({**_atom("BINARY.EMBEDDED"),
+                             "note": f"carved {len(carved)} embedded text region(s) "
+                                     f"({sum(c['size'] for c in carved)} bytes) for rescanning"})
     result = {"ok": True, "path": os.path.abspath(args.input), **info,
-              "atomCount": len(findings), "atoms": findings}
+              "atomCount": len(findings), "atoms": findings, "carved": carved[:50]}
+    if carved:  # surfaces to the provider as DerivedSource → the fold rescans it
+        result["outputDir"] = os.path.abspath(args.outdir)
     if args.format == "json":
         sys.stdout.write(json.dumps(result) + "\n")
         return 0
