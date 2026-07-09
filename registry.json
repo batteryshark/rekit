@@ -1116,6 +1116,141 @@
       "note": "BYO Ghidra on PATH (a large JVM app; not bundled). We DO bundle the Ghidra post-script (scripts/ghidra_decompile.py, Jython) that decompiles all functions. The heavy sibling of native-decompile: native-decompile (rizin pdg) is Ghidra's decompiler without a JVM for the common case; this is full Ghidra for hard targets. Dispatcher prereq gate = honest degradation."
     }
   },
+  "gitops": {
+    "name": "Git Operations",
+    "description": "Drive git through plain verbs — clone, status, commit, branch, switch, stash, push, pull, remote-add, worktree-add/list/remove, undo, discard, reset-hard — for harnesses or smaller models that can't or shouldn't hand-write git commands, refspecs, or worktree plumbing. Every op runs git non-interactively and returns ONE structured JSON result (branch, ahead/behind, staged files, new commit hash, ...), so the caller reasons about repo state without parsing git output. Data-loss ops (discard, reset-hard, worktree-remove, force push) refuse unless an explicit --force is passed. Use when an agent needs to commit/branch/stash/push or set up a worktree but you don't want it improvising raw git. Operates on your own trusted repo; never executes analysed samples.",
+    "version": "0.1.0",
+    "capabilities": [
+      "git-ops",
+      "version-control",
+      "commit",
+      "branch",
+      "stash",
+      "worktree",
+      "clone",
+      "remote"
+    ],
+    "prerequisites": [
+      {
+        "tool": "git",
+        "min_version": "2.5",
+        "check": [
+          "git",
+          "--version"
+        ],
+        "install_hint": "Install git (https://git-scm.com). macOS: xcode-select --install (or brew install git); Debian/Ubuntu: sudo apt install -y git."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "optional",
+      "tier": 1,
+      "notes": "Runs git against a repo you point it at (your own trusted tree, not a sample). Mutates repo state (commit/branch/stash/worktree); push/pull/fetch reach the remote. Data-loss ops refuse without --force; git runs non-interactively (no credential/editor/pager prompts) so it fails fast instead of hanging."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/gitops.py"
+      ],
+      "args": [
+        {
+          "name": "op",
+          "type": "enum",
+          "required": true,
+          "desc": "which git verb to run (see SKILL.md for each op's args)",
+          "choices": [
+            "status",
+            "log",
+            "diff",
+            "branches",
+            "add",
+            "commit",
+            "branch",
+            "switch",
+            "stash",
+            "stash-pop",
+            "stash-list",
+            "push",
+            "pull",
+            "fetch",
+            "worktree-add",
+            "worktree-list",
+            "worktree-remove",
+            "undo",
+            "discard",
+            "reset-hard",
+            "init",
+            "clone",
+            "remote-add",
+            "remotes"
+          ]
+        },
+        {
+          "name": "-C",
+          "type": "dir",
+          "required": false,
+          "desc": "run inside this repo dir (default: cwd)"
+        },
+        {
+          "name": "message",
+          "type": "str",
+          "required": false,
+          "desc": "commit message (op=commit)"
+        },
+        {
+          "name": "--path",
+          "type": "str",
+          "required": false,
+          "desc": "limit staging/diff/discard to these paths"
+        },
+        {
+          "name": "--branch",
+          "type": "str",
+          "required": false,
+          "desc": "existing branch (worktree-add)"
+        },
+        {
+          "name": "--new-branch",
+          "type": "str",
+          "required": false,
+          "desc": "new branch name (worktree-add)"
+        },
+        {
+          "name": "--remote",
+          "type": "str",
+          "required": false,
+          "desc": "remote name (push/pull/fetch; default origin)"
+        },
+        {
+          "name": "--force",
+          "type": "flag",
+          "required": false,
+          "desc": "consent to a data-loss op (discard/reset-hard/worktree-remove/push)"
+        },
+        {
+          "name": "--name",
+          "type": "str",
+          "required": false,
+          "desc": "remote name for remote-add (default: origin)"
+        },
+        {
+          "name": "url",
+          "type": "str",
+          "required": false,
+          "desc": "repo URL (clone / remote-add)"
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "json",
+        "fields": {
+          "ok": "bool",
+          "op": "string",
+          "error": "string?"
+        }
+      }
+    }
+  },
   "hex-view": {
     "name": "Hex Viewer",
     "description": "Non-interactive hex dump of a file or byte range (offset + hex + ASCII), with total size and sha256. Pure-Python stdlib, no dependencies. Reads bytes only — never executes the input.",
