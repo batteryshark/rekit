@@ -1977,6 +1977,113 @@
       "note": "Installed via `uv pip install --target scripts/site` (pure Python, portable). Completes the PE/ELF/Mach-O triage trio and emits structured BINARY.* atoms."
     }
   },
+  "native-disassemble": {
+    "name": "Native Disassembler",
+    "description": "Disassemble PE, ELF, or Mach-O binaries to function-oriented assembly without executing them. Automatically uses llvm-objdump/objdump, then falls back to Rizin/radare2 analysis for stripped binaries. Writes the complete listing to disassembly.txt and reports instruction/function-line counts.",
+    "version": "0.1.0",
+    "capabilities": [
+      "disassemble-native",
+      "disassemble-pe",
+      "disassemble-elf",
+      "disassemble-macho"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ for the runner."
+      },
+      {
+        "tool": "native disassembler",
+        "check": [
+          "sh",
+          "-c",
+          "command -v llvm-objdump || command -v objdump || command -v rizin || command -v r2"
+        ],
+        "install_hint": "Install LLVM/binutils for llvm-objdump/objdump, or install rizin/radare2 as a fallback."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 1,
+      "notes": "Trusted disassembler over an untrusted binary. Parses and decodes executable sections but never runs or emulates the target. Timeout-bounded; output is streamed atomically to disassembly.txt."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "input",
+          "type": "file",
+          "required": true,
+          "desc": "native binary (PE, ELF, or Mach-O)"
+        },
+        {
+          "name": "outdir",
+          "type": "dir",
+          "required": true,
+          "desc": "output directory (writes disassembly.txt)"
+        },
+        {
+          "name": "--tool",
+          "type": "enum",
+          "required": false,
+          "desc": "auto | llvm-objdump | objdump | rizin | r2 (default auto)",
+          "choices": [
+            "auto",
+            "llvm-objdump",
+            "objdump",
+            "rizin",
+            "r2"
+          ]
+        },
+        {
+          "name": "--timeout",
+          "type": "int",
+          "required": false,
+          "desc": "disassembler timeout in seconds (default 1800)"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "tool": "string",
+          "format": "string",
+          "outputFile": "string",
+          "bytes": "int",
+          "functionLabels": "int",
+          "instructionLines": "int",
+          "exitCode": "int"
+        }
+      }
+    },
+    "payload": {
+      "tool": "llvm-objdump/objdump/rizin/r2",
+      "source": "system toolchain",
+      "vendored": null,
+      "runner": "scripts/run.py",
+      "note": "Pure-stdlib static wrapper with no vendored disassembler. Prefers the lightweight LLVM/GNU objdump path, then falls back to analyzed Rizin/radare2 function disassembly. No Ghidra or Java dependency."
+    }
+  },
   "native-decompile": {
     "name": "Native Decompiler",
     "description": "Decompile a native binary (ELF/PE/Mach-O) to C-like pseudocode with rizin's built-in Ghidra decompiler (pdg over all functions). Static: analyses and decompiles, never runs the target. Prereq-gated on rizin/r2; honest blind spot with an install hint when absent. Pair with elf/pe/macho-analyze.",

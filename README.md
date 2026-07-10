@@ -106,6 +106,7 @@ Grouped by what they do; `rekit list` and `rekit caps` are the authoritative cat
 | `pyc-decompile` | `.pyc` → source (decompyle3, 3.7–3.8) | python3 |
 | `jvm-decompile` | `.apk`/`.dex`/`.jar`/`.class` → Java (jadx) | jadx (BYO) |
 | `dotnet-decompile` | .NET IL → C# (ilspycmd) | ilspycmd (BYO) |
+| `native-disassemble` | ELF/PE/Mach-O → assembly listing (objdump; rizin/r2 fallback) | llvm-objdump/objdump/rizin/r2 (BYO) |
 | `native-decompile` | ELF/PE/Mach-O → C (rizin `pdg`, no JVM) | rizin (BYO) |
 | `ghidra-decompile` | ELF/PE/Mach-O → C (full Ghidra headless) | analyzeHeadless (BYO) |
 
