@@ -97,6 +97,17 @@ def _confusable_letter(cp: int) -> bool:
 
 _BIDI = set(range(0x202A, 0x202F)) | set(range(0x2066, 0x206A)) | {0x200E, 0x200F}
 
+# XOR-charCode obfuscation: a caret XOR ADJACENT to a charCode call —
+# String.fromCharCode(c ^ k) or s.charCodeAt(i) ^ k. Proximity-bounded on purpose: a
+# bare `^` and a `charCodeAt` far apart on the SAME minified megaline must NOT co-fire
+# (that FP tagged base64 tables and TypeScript compiler helpers as XOR obfuscation).
+# Real constant-key XOR *recovery* is js-string-decode's job; this only flags the tactic
+# when the XOR sits right on the charCode call.
+_XOR_CHARCODE = re.compile(
+    r"fromCharCode\s*\([^)]{0,40}\^"        # String.fromCharCode(c ^ k)
+    r"|charCodeAt\s*\([^)]{0,30}\)\s*\^"    # s.charCodeAt(i) ^ k
+)
+
 _REGEXES = [
     ("OBF.CHARCODE", re.compile(r"String\.fromCharCode\(\s*(?:0x[0-9a-fA-F]+|\d+)"
                                 r"(?:\s*,\s*(?:0x[0-9a-fA-F]+|\d+)){5,}")),
@@ -154,8 +165,9 @@ def scan_text(text: str, path: str, findings: list) -> None:
             if len(findings) >= _MAX_FINDINGS:
                 return
         # --- line-level: OBF / EVADE regexes ---
-        if "^" in line and ("fromCharCode" in line or "charCodeAt" in line):
-            findings.append(_finding("OBF.XOR", path, line_no, line.index("^") + 1, line.strip()))
+        m_xor = _XOR_CHARCODE.search(line)
+        if m_xor:
+            findings.append(_finding("OBF.XOR", path, line_no, m_xor.start() + 1, line.strip()))
         for atom, rx in _REGEXES:
             m = rx.search(line)
             if m:
