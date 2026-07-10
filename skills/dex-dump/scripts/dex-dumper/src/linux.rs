@@ -61,10 +61,7 @@ impl RemoteProcess {
             let error = if waited == -1 {
                 io::Error::last_os_error()
             } else {
-                io::Error::new(
-                    io::ErrorKind::Other,
-                    "waitpid returned an unexpected process",
-                )
+                io::Error::other("waitpid returned an unexpected process")
             };
             process.detach();
             return Err(error);
@@ -72,10 +69,9 @@ impl RemoteProcess {
         // The low byte 0x7f denotes a ptrace/job-control stop in wait status.
         if status & 0xff != 0x7f {
             process.detach();
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!("target did not enter a stopped state (status 0x{status:x})"),
-            ));
+            return Err(io::Error::other(format!(
+                "target did not enter a stopped state (status 0x{status:x})"
+            )));
         }
         Ok(process)
     }
