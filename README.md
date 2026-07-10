@@ -1,35 +1,81 @@
+<p align="center">
+  <img src="rekit-logo.png" alt="rekit reverse engineering system" width="360">
+</p>
+
 # rekit
 
-A library of **self-contained analysis skills** that any agent (or tool) can call —
-built for reverse-engineering and malicious-code triage, but coupled to nothing.
+rekit is a catalog and dispatcher for reverse-engineering skills that agents,
+automation, and analysts can invoke through one CLI or MCP server. It covers static
+triage, extraction, decompilation, emulation, dynamic observation, and native artifact
+construction.
 
-Each skill is a folder that carries everything it needs: a bundled tool or pure-stdlib
-runner under `scripts/`, and an agent-facing `SKILL.md` (`name` + `description`
-frontmatter). The machine manifest for every skill lives in one central
-[`registry.json`](registry.json), keyed by id. A skill declares its external prerequisites and its safety properties
-(does it execute the input? touch the network?). If a prerequisite is missing, the
-caller is told exactly what to install — or it skips the skill and records the target
-as *not analysed*. Nothing is ever silently skipped.
+Every skill has a human-readable `SKILL.md`, an executable runner, and a machine entry
+in [`registry.json`](registry.json). The registry declares prerequisites, inputs,
+outputs, capabilities, and whether the skill executes its target or uses the network.
+Missing tools produce an explicit availability result instead of silently reducing
+coverage.
 
-The contract is consumer-agnostic: a skill is a directory, a manifest entry in
-`registry.json`, and a documented invocation — any agent or tool can call it.
+## Quickstart
+
+rekit's dispatcher requires Python 3.8+ and Bash. Clone the repository, inspect the
+catalog, then run a pure-stdlib skill:
 
 ```bash
-bin/rekit list                    # what skills exist
-bin/rekit doctor                  # rekit's own reqs (base/build/recommended) + which skills are ready  (X/Y)
-bin/rekit caps                    # capability → skills index
-bin/rekit install [--<id>]        # vendor skill runtimes (runs each build.sh)
-bin/rekit run <id> <args...>      # run one (checks prereqs first)
-bin/rekit setup [--tier all]      # print install commands for missing base/build/recommended tools (never runs them)
-bin/rekit info <id>               # manifest + SKILL.md
-bin/rekit mcp [--allow-dynamic]   # serve the whole catalog over MCP (one tool per skill; export only)
+git clone https://github.com/batteryshark/rekit.git
+cd rekit
+
+bin/rekit list
+bin/rekit doctor bin-triage
+bin/rekit run bin-triage ./unknown.bin ./out --format json
 ```
+
+Skills with local Python or Node.js runtimes need a one-time build. The setup command
+prints required package-manager commands without running them; `install` builds the
+selected runtimes from the committed manifests and lockfile. Native builds that need
+an external SDK, such as `dex-dump`, run only when explicitly selected.
+
+```bash
+bin/rekit setup --tier all
+bin/rekit install              # or: bin/rekit install js-deobfuscate
+bin/rekit doctor
+```
+
+## How it fits together
+
+| Path | Responsibility |
+|---|---|
+| [`bin/rekit`](bin/rekit) | Stable CLI entry point |
+| [`scripts/rekit.py`](scripts/rekit.py) | Discovery, prerequisite checks, dispatch, setup, and docs sync |
+| [`scripts/rekit_mcp.py`](scripts/rekit_mcp.py) | MCP transport over the same CLI execution path |
+| [`registry.json`](registry.json) | Machine-readable source of truth for the skill catalog |
+| [`skills/`](skills) | One directory per skill: documentation, runner, and optional payload |
+| [`SKILL-CONTRACT.md`](SKILL-CONTRACT.md) | Manifest and packaging contract for contributors |
+
+The execution path stays short: `bin/rekit` delegates to `scripts/rekit.py`, the
+dispatcher resolves one registry entry, checks its prerequisites and safety gate, then
+invokes that skill's runner. The MCP server calls the same path rather than maintaining
+a second implementation.
+
+## CLI
+
+| Command | Purpose |
+|---|---|
+| `bin/rekit list` | List the catalog and declared capabilities |
+| `bin/rekit search <query>` | Find skills by name, capability, prerequisite, or description |
+| `bin/rekit info <id>` | Show one manifest entry and its `SKILL.md` |
+| `bin/rekit doctor [<id>]` | Check host requirements, skill prerequisites, and local payloads |
+| `bin/rekit run <id> <args...>` | Run a skill after prerequisite and safety checks |
+| `bin/rekit setup [--tier all]` | Print commands for missing host tools; never install them |
+| `bin/rekit install [<id>]` | Build optional local runtimes |
+| `bin/rekit caps` | Map capabilities to skills |
+| `bin/rekit mcp [--allow-dynamic]` | Export one MCP tool per skill |
 
 ## The skills
 
 Grouped by what they do; `rekit list` and `rekit caps` are the authoritative catalog.
 
 **Source detection** (pure stdlib, read-only, emit atoms)
+
 | Skill | What | Prereq |
 |---|---|---|
 | `js-covert-scan` | STEGO/OBF/EVADE tactics in JS/TS (Unicode stego, XOR hiding, env-evasion) | python3 |
@@ -39,6 +85,7 @@ Grouped by what they do; `rekit list` and `rekit caps` are the authoritative cat
 | `ioc-extract` | defanged IOCs (urls/ips/domains/hashes/CVEs/…) from any file | python3 |
 
 **Binary triage** (emit `BINARY.*`/`DOTNET.*` atoms)
+
 | Skill | What | Prereq |
 |---|---|---|
 | `bin-triage` | format ID + entropy + strings + embedded-signature scan (mini-binwalk) | python3 |
@@ -50,6 +97,7 @@ Grouped by what they do; `rekit list` and `rekit caps` are the authoritative cat
 | `r2-recon` | cross-format native recon (ELF/PE/Mach-O/DEX…) — r2 headless: info/sections+entropy/imports/funcs/strings → `BINARY.*` atoms | r2 (BYO) |
 
 **Deobfuscate / decompile**
+
 | Skill | What | Prereq |
 |---|---|---|
 | `js-deobfuscate` | unpack obfuscated JS (webcrack, sandboxed) | node |
@@ -62,6 +110,7 @@ Grouped by what they do; `rekit list` and `rekit caps` are the authoritative cat
 | `ghidra-decompile` | ELF/PE/Mach-O → C (full Ghidra headless) | analyzeHeadless (BYO) |
 
 **Extract**
+
 | Skill | What | Prereq |
 |---|---|---|
 | `unpack` | recursive, safe: zip/tar/gz/bz2/xz/**asar**/**ar·deb** (+7z/rar via CLI) | python3 |
@@ -69,19 +118,22 @@ Grouped by what they do; `rekit list` and `rekit caps` are the authoritative cat
 | `binwalk-carve` | carve/extract embedded files from firmware images | binwalk (BYO) |
 
 **PE repair** (Windows — reconstruct dumped or packed PEs)
+
 | Skill | What | Prereq |
 |---|---|---|
 | `pe-unmap` | convert PE alignment: memory dump → loadable EXE (pe_unmapper) | python3 · Windows binary |
-| `pyscylla` | rebuild a dumped PE's Import Address Table (libscylla) | python3 · Windows binary |
+| `pyscylla` | rebuild a dumped PE's Import Address Table (libscylla adapter) | python3 · BYO libscylla |
 | `ord-lookup` | resolve Windows DLL ordinal imports → symbol names | python3 |
 
 **Mobile** (dump from a live device)
+
 | Skill | What | Prereq |
 |---|---|---|
 | `dex-dump` | dump decrypted DEX from a running Android app | adb (BYO device) |
 | `ios-dump` | dump a decrypted iOS app binary (FairPlay) from a jailbroken device | frida (BYO device) |
 
 **Dynamic** ⚡ (run the target to observe behavior; consent-gated via `rekit run --allow-dynamic`)
+
 | Skill | What | Prereq |
 |---|---|---|
 | `exec-observe` | run target, capture exit/stdout/stderr/files-created/timing | python3 |
@@ -92,6 +144,7 @@ Grouped by what they do; `rekit list` and `rekit caps` are the authoritative cat
 | `frida-trace` ⚡ | Frida-hook network/exec/file/crypto API calls | frida-trace (BYO) · python3 |
 
 **Construct** 🔨 (produce an artifact; never run it)
+
 | Skill | What | Prereq |
 |---|---|---|
 | `cc-build` | compile C/C++/ObjC → native (exe/.o/.s/IR), cross-compile | clang/cc/gcc (BYO) · python3 |
@@ -99,6 +152,7 @@ Grouped by what they do; `rekit list` and `rekit caps` are the authoritative cat
 | `shellcode-stub` | wrap raw shellcode → runnable native PoC (`--os posix` mmap/mprotect \| `--os windows` VirtualAlloc+ExitProcess) | clang (BYO) · python3 |
 
 **Workflow** (not RE — a harness convenience)
+
 | Skill | What | Prereq |
 |---|---|---|
 | `gitops` | drive git through plain verbs (clone/commit/branch/stash/push/worktree/…) for harnesses that don't grok git | git |
@@ -110,43 +164,34 @@ Grouped by what they do; `rekit list` and `rekit caps` are the authoritative cat
 - **Binary:** `bin-triage` → `pe`/`elf`/`macho`/`dotnet-analyze` → the matching decompiler
 - **Construct → analyze:** `asm-assemble` → `shellcode-stub` → `exec-observe` (native) or `qiling-emulate` (cross-arch/cross-OS); `cc-build` → any decompiler (or `--emit asm|ir`)
 
-## Getting started
+## Requirements and runtimes
 
-rekit needs a baseline to run at all: **python3 ≥ 3.8** and **bash** (the dispatcher is
-pure stdlib). Vendoring skill runtimes (`rekit install`) additionally needs **npm** (one
-skill) and **uv** (seven skills). A fresh analysis box also benefits from `rg`, `git`,
-`curl`, `jq`, `file`. These tiers live in [`requirements.json`](requirements.json) —
-**distinct from per-skill prerequisites** (which live in `registry.json`).
+[`requirements.json`](requirements.json) separates rekit's host requirements from the
+prerequisites declared by individual skills:
 
-```bash
-bin/rekit setup                   # print install commands for any missing BASE tools (never runs them)
-bin/rekit setup --tier all        # base + build + recommended
-bin/rekit install                 # vendor runtimes for the skills that need it
-bin/rekit doctor                  # confirm what's ready; install BYO tools for the rest
-bin/rekit run bin-triage ./unknown.bin
-```
+- **Base:** Python 3.8+ and Bash, required by the dispatcher.
+- **Build:** npm and uv, used by `bin/rekit install` to create optional local runtimes.
+- **Recommended:** command-line tools useful on an analysis workstation.
+- **Per skill:** tools such as YARA, Ghidra, jadx, or radare2, checked only when relevant.
 
-`rekit setup` **prints** platform-appropriate install commands (auto-detects macOS/Linux;
-on Windows, run them inside WSL2) — it never runs a package manager itself. Pipe it if you
-want: `rekit setup --tier all | bash`. See [`docs/PLATFORMS.md`](docs/PLATFORMS.md) for the
-tier table and the platform/WSL2 stance.
+Generated `scripts/site/` and `scripts/node_modules/` trees are local and ignored by
+Git. Their direct dependencies are versioned in requirements files or `package-lock.json`.
+After installation, runners use those local copies and do not fetch packages while
+analyzing a target. See [`docs/PLATFORMS.md`](docs/PLATFORMS.md) for platform support and
+the full tier table.
 
-## Design rules
+## Safety model
 
-- **Self-contained.** A skill ships its own tool (bundled to one file where possible).
-  No install step at analysis time.
-- **Pinned & offline.** Tools are vendored at build time, never fetched mid-analysis —
-  this is tooling for hostile inputs.
-- **Honest degradation.** Missing prerequisite → the skill reports `missing` with an
-  install hint; the caller asks the human or records a coverage blind spot.
-- **Safety is declared.** Every skill states whether it executes the input and whether
-  it needs network. Most are read-only and offline.
-- **Three packaging patterns:** pure-stdlib (no vendored deps), vendored
-  `scripts/node_modules` (native ok), vendored `pip --target scripts/site`
-  (pure-python). Native-ABI-locked python deps are avoided; such tools go through an
-  external CLI instead.
+Each registry entry declares `executes_input`, network behavior, and a safety tier.
 
-See [`SKILL-CONTRACT.md`](SKILL-CONTRACT.md) for the manifest spec.
+- Static skills read or transform input without executing it.
+- Contained skills run narrow code or whole binaries inside an emulator or sandbox.
+- Dynamic skills execute the target on the host or a connected device. Host execution
+  requires `--allow-dynamic`; that flag records consent but does not create a sandbox.
+- Construct skills produce artifacts and do not run what they build.
+
+Run dynamic skills only in an environment whose isolation and network policy match the
+target's risk. Missing prerequisites remain visible in `doctor` and MCP tool metadata.
 
 ## License
 

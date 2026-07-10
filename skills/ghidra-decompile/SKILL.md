@@ -19,7 +19,7 @@ output on complex or stripped binaries. Triage with `elf`/`pe`/`macho-analyze` f
 ## What it does
 
 Runs `analyzeHeadless` on the binary in a throwaway project, then executes the bundled
-Ghidra script (`runtime/ghidra_decompile.py`, Jython) which decompiles **every**
+Ghidra script (`scripts/ghidra_decompile.py`, Jython) which decompiles **every**
 function to `outdir/decompiled.c`. Static — Ghidra analyses and decompiles; it never
 runs the target. The project dir is deleted afterward; analysis is timeout-bounded.
 

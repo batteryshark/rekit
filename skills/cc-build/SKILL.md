@@ -7,13 +7,11 @@ description: "CONSTRUCT: compile C/C++/ObjC source into a native artifact (exe /
 
 **🔨 Construct tier — this skill *produces* an artifact, it doesn't read a sample.**
 
-## Why this exists
+## Purpose
 
-rekit has been all *analyze* — read/observe a target. `cc-build` is the first *construct*
-skill: it builds the things RE work needs — a PoC, a test harness, a stub to feed a
-decompiler, a shared lib to inject. It compiles; it does **not** run the result. To run
-what it builds, hand the artifact to the dynamic tier yourself (`exec-observe` for an
-exe, `emulate-code` for shellcode/obj bytes).
+`cc-build` creates the native artifacts RE work needs: PoCs, test harnesses, decompiler
+fixtures, and shared libraries. It compiles but does **not** run the result. Use
+`exec-observe` for an executable or `emulate-code` for shellcode and object bytes.
 
 ## What it does
 

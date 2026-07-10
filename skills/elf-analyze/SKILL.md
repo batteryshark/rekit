@@ -11,8 +11,8 @@ objects) with [pyelftools](https://github.com/eliben/pyelftools).
 ## When to use
 
 You have a Linux binary or `.so` and want a fast read on what it is and whether it
-looks sketchy — without running it. Pairs with `hex-view` (bytes) and feeds an MCD
-reading (the `BINARY.*` atoms map onto capability/obfuscation lenses).
+looks suspicious — without running it. Pair it with `hex-view`; its `BINARY.*` atoms
+provide structured evidence for downstream analysis.
 
 ## What it reports
 
@@ -40,10 +40,10 @@ Non-ELF input fails honestly (`{"ok": false, "error": "not a valid ELF: …"}`).
 
 ## Prerequisites
 
-- **python3 ≥ 3.8** — pyelftools is vendored under `runtime/site` (pure-python), so
+- **python3 ≥ 3.8** — pyelftools is installed under `scripts/site` (pure-python), so
   there's no network/install at analysis time.
 
 ## Rebuilding
 
-`runtime/site` is populated from the pinned `runtime/requirements.txt` by
+`scripts/site` is populated from the pinned `scripts/requirements.txt` by
 `scripts/build.sh` (`uv pip install --target`, build time only).

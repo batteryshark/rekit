@@ -1,26 +1,34 @@
-# pyscylla
+# pyscylla Python API
 
 Python bindings for `libscylla` — dump, realign, and rebuild IATs of
 Windows PE binaries from Python. A programmatic successor to the
 classic [Scylla](https://github.com/NtQuery/Scylla) GUI tool, designed
 for agent-driven memory dump cleanup workflows.
 
-## Status
+## External libscylla setup
 
-v0.1 — wraps libscylla's C ABI for: process enumeration (with arch
-detection), dumping, PE rebuild / realign, IAT search/parse/edit/fix,
-XML tree round-trip, and IAT reference scanning.
-
-## Install
-
-The native DLL is vendored as `pyscylla/bin/libscylla-{x86,x64}.dll`.
-No compile step is required on the consumer side.
+Rekit intentionally does not bundle, download, or build `libscylla`. On Windows,
+obtain an architecture-matched DLL from the external
+[Scylla project](https://github.com/NtQuery/Scylla), review its GPL-3.0-only license,
+and point `PYSCYLLA_DLL` to its absolute path:
 
 ```powershell
-cd pyscylla
-uv sync
-uv run python -m pyscylla version
+$env:PYSCYLLA_DLL = "C:\tools\scylla\libscylla-x64.dll"
+bin/rekit doctor pyscylla
 ```
+
+The DLL may instead be available on `PATH` as `libscylla-x64.dll`,
+`libscylla-x86.dll`, or `libscylla.dll`. The environment variable is less ambiguous.
+
+From the Rekit repository root:
+
+```powershell
+bin/rekit run pyscylla version
+bin/rekit run pyscylla arch --pid 1234
+```
+
+The wrapper configures `PYTHONPATH` and returns JSON. For direct library or module use,
+add `skills/pyscylla/scripts` to `PYTHONPATH` first.
 
 ## The arch-match rule (read this before anything else)
 
@@ -71,21 +79,21 @@ python -m pyscylla fix --pid 1234 --addr 0x405000 --size 0x100 \
 python -m pyscylla rebuild --file game_fixed.exe --json
 ```
 
-### 3. MCP server (best for LLM agents)
+### 3. MCP server
 
 ```bash
-pyscylla-mcp           # or: python -m pyscylla.mcp_server
+python -m pyscylla.mcp_server
 ```
 
-Register with Claude Desktop / opencode / Cursor:
+Register it with any MCP client:
 
 ```json
 {
   "mcpServers": {
     "pyscylla": {
-      "command": "uv",
-      "args": ["run", "--directory", "C:/path/to/pyscylla",
-               "python", "-m", "pyscylla.mcp_server"]
+      "command": "python",
+      "args": ["-m", "pyscylla.mcp_server"],
+      "env": {"PYTHONPATH": "C:/path/to/rekit/skills/pyscylla/scripts"}
     }
   }
 }
@@ -96,16 +104,13 @@ Tools provided: `server_info`, `list_processes`, `find_process`,
 `iat_fix_auto`, `rebuild_file`, `tree_save`, `tree_load`,
 `reference_scan`.
 
-## Agent workflow (the design target)
+## Dump-recovery workflow
 
-This package is built for the pattern where one agent skill is handed
-a PID and told to clean up the dump. Other skills handle the harder
-reverse-engineering work via [x64dbg-mcp](../x64dbgMCP/) and friends:
+Use a debugger or instrumentation tool to find the original entry point and resolve
+questionable addresses, then use pyscylla for the mechanical recovery steps:
 
-1. **OEP discovery** — separate skill, x64dbg-mcp tricks (hw breakpoint
-   on `GetCommandLineA`/`W`, walk stack to `_start`)
-2. **API resolution** — separate skill, x64dbg-mcp resolves
-   suspicious VAs against loaded module exports
+1. **OEP discovery** — debugger or instrumentation tool.
+2. **API resolution** — debugger or module-export data.
 3. **This skill (pyscylla)** — given the PID + OEP, does:
    ```
    ps.iat.search(pid, search_start=oep) → IAT region
@@ -140,24 +145,19 @@ adapters:
   `feed.bind_tools(MemoryRead=x64dbg_MemoryRead, …)`)
 - **`GhidraMcpFeed`** — drives Ghidra via MCP tools (static-only flows)
 
-All three feed the same analysis path so an agent can drive pyscylla
-from any of the debuggers already in this workspace.
+All three feed the same analysis path. MCP adapters receive their tool callables from
+the host through `bind_tools`; pyscylla does not manage debugger lifecycles.
 
-## Building libscylla
+## Obtaining libscylla
 
-Self-contained: `build-native.ps1` fetches tinyxml automatically then
-builds both x86 and x64 Release DLLs.
-
-```powershell
-.\build-native.ps1
-```
-
-Prerequisites:
-- Visual Studio 2022 with the v143 toolset (Desktop C++ workload)
-- diStorm (vendored at `Scylla/diStorm/`)
-- tinyxml (auto-fetched, or see `Scylla/tinyxml/README`)
-- **ATL and WTL are NOT required** for libscylla
+Use the upstream project's source and build documentation. Rekit deliberately does not
+mirror the source, ship prebuilt DLLs, or automate that third-party build. This keeps
+the repository's Apache-2.0 code and the optional GPL dependency visibly separate.
 
 ## License
 
-GPL-3.0-only — inherited from the upstream Scylla project.
+The Rekit-maintained adapter and orchestration code under `skills/pyscylla/scripts/`
+is distributed under Rekit's root Apache-2.0 license. The external Scylla/libscylla
+project is GPL-3.0-only and is not part of Rekit. Operators who obtain, build, use,
+modify, or redistribute it are responsible for reviewing and complying with the
+upstream terms.

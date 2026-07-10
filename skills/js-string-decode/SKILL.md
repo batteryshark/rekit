@@ -25,7 +25,7 @@ scheme is the constant-key case and you want no execution at all.
 
 ## What it does
 
-`python3 runtime/decode.py <input.js> [outdir]`:
+`python3 scripts/decode.py <input.js> [outdir]`:
 
 1. **Scan** the JS with regex/heuristics (no JS engine, no execution). It finds
    constant-key XOR/charCode decode sites: a `String.fromCharCode(<x> ^ <KEY>)` or

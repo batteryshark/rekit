@@ -40,8 +40,5 @@ When an ordinal isn't in the database, the runner falls back to a synthetic
 `ord<N>` name (so an import table is never left with a bare number). `known:false`
 in JSON marks these synthetic fallbacks.
 
-## Refactor note
-
-Consolidated from the standalone `ordlookup` package (three Python modules of dict
-literals) into one JSON data file + a pure-stdlib runner, dropping the package
-overhead and the duplicated `wsock32` copy of the `ws2_32` table.
+The lookup table lives at `assets/ordinals.json`; `wsock32` and `mswsock` reuse the
+`ws2_32` entries instead of duplicating them.

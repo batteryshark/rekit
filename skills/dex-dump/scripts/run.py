@@ -1,9 +1,9 @@
 """dex-dump — dump decrypted DEX from a running Android app's memory.
 
-Pushes the vendored panda-dex-dumper (aarch64) to a connected rooted device via
-adb, ptrace-attaches to the target app (which the operator already launched, past
-its splash screen so the packer has decrypted the real DEX), dumps the in-memory
-DEX files, pulls them to the output dir, and cleans up the device.
+Pushes rekit's clean-room dex-dumper (aarch64) to a connected rooted device via adb,
+ptrace-attaches to the target app (which the operator already launched, past its
+splash screen so the packer has decrypted the real DEX), dumps the in-memory DEX
+files, pulls them to the output dir, and cleans up the device.
 
 Does NOT execute a sample on the host. Invasive only on the connected device.
 
@@ -21,9 +21,9 @@ import subprocess
 import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-_BIN = os.path.join(os.path.dirname(_HERE), "bin", "panda-dex-dumper")
-_DEV_TOOL = "/data/local/tmp/panda-dex-dumper"
-_DEV_OUT = "/data/local/tmp/panda/"
+_BIN = os.path.join(os.path.dirname(_HERE), "bin", "dex-dumper")
+_DEV_TOOL = "/data/local/tmp/rekit-dex-dumper"
+_DEV_OUT = "/data/local/tmp/rekit-dex-dump"
 
 
 def _emit(obj: dict, fmt: str) -> None:
@@ -79,9 +79,26 @@ def _pidof(device: str | None, pkg: str) -> str | None:
     return None
 
 
-def _launch(device: str | None, pkg: str) -> bool:
-    r = _adb(["shell", "monkey", "-p", pkg, "-c", "android.intent.category.LAUNCHER", "1"], device)
-    return r.returncode == 0
+def _root_mode(device: str | None) -> str | None:
+    direct = _adb(["shell", "id", "-u"], device)
+    if direct.returncode == 0 and direct.stdout.strip() == "0":
+        return "adb"
+    via_su = _adb(["shell", "su", "-c", "id -u"], device)
+    if via_su.returncode == 0 and via_su.stdout.strip().splitlines()[-1:] == ["0"]:
+        return "su"
+    return None
+
+
+def _root_shell(command: str, device: str | None, mode: str) -> subprocess.CompletedProcess:
+    args = ["shell", command] if mode == "adb" else ["shell", "su", "-c", command]
+    return _adb(args, device)
+
+
+def _cleanup_device(device: str | None, mode: str, keep_tool: bool) -> None:
+    paths = [shlex.quote(_DEV_OUT)]
+    if not keep_tool:
+        paths.append(shlex.quote(_DEV_TOOL))
+    _root_shell("rm -rf " + " ".join(paths), device, mode)
 
 
 def main(argv: list[str]) -> int:
@@ -97,7 +114,8 @@ def main(argv: list[str]) -> int:
         _emit({"ok": False, "error": "adb not on PATH", "hint": "install Android Platform Tools"}, a.format)
         return 3
     if not os.path.isfile(_BIN):
-        _emit({"ok": False, "error": f"vendored payload missing: {_BIN}"}, a.format)
+        _emit({"ok": False, "error": f"device tool is not built: {_BIN}",
+               "hint": "build it with `bin/rekit install dex-dump` (Rust + Android NDK required)"}, a.format)
         return 3
 
     devs = _devices(a.device)
@@ -106,6 +124,12 @@ def main(argv: list[str]) -> int:
         return 2
     if a.device and a.device not in devs:
         _emit({"ok": False, "error": f"device serial {a.device} not connected"}, a.format)
+        return 2
+
+    root_mode = _root_mode(a.device)
+    if root_mode is None:
+        _emit({"ok": False,
+               "error": "root shell unavailable; dex-dumper requires adb root or a working `su -c`"}, a.format)
         return 2
 
     os.makedirs(a.outdir, exist_ok=True)
@@ -119,12 +143,8 @@ def main(argv: list[str]) -> int:
 
     pid = _pidof(a.device, pkg)
     if not pid:
-        if not _launch(a.device, pkg):
-            _emit({"ok": False, "package": pkg, "error": f"{pkg} not running and launch failed"}, a.format)
-            return 2
-        pid = _pidof(a.device, pkg)
-    if not pid:
-        _emit({"ok": False, "package": pkg, "error": f"could not resolve pid for {pkg} (is it installed?)"}, a.format)
+        _emit({"ok": False, "package": pkg,
+               "error": f"{pkg} is not running; launch it yourself and wait until its DEX is decrypted"}, a.format)
         return 2
 
     # push the device-side tool
@@ -135,25 +155,38 @@ def main(argv: list[str]) -> int:
     _adb(["shell", "chmod", "755", _DEV_TOOL], a.device)
 
     # dump on device
-    run = _adb(["shell", f"cd /data/local/tmp && ./panda-dex-dumper -p {pid}"], a.device)
+    run = _root_shell(
+        f"{shlex.quote(_DEV_TOOL)} -p {pid} -o {shlex.quote(_DEV_OUT)}",
+        a.device,
+        root_mode,
+    )
     if run.returncode != 0:
         err = run.stderr.strip() or run.stdout.strip() or f"exit {run.returncode}"
-        # still try to clean up the tool
-        if not a.keep_tool:
-            _adb(["shell", "rm", "-f", _DEV_TOOL], a.device)
+        _cleanup_device(a.device, root_mode, a.keep_tool)
         _emit({"ok": False, "package": pkg, "pid": int(pid),
                "error": f"on-device dump failed (root required for ptrace?): {err[:300]}"}, a.format)
         return 1
 
     # pull + clean up
-    _adb(["shell", f"mkdir -p {shlex.quote(_DEV_OUT)}"], a.device)
-    pull = _adb(["pull", _DEV_OUT.rstrip("/"), a.outdir], a.device)
-    if not a.keep_tool:
-        _adb(["shell", "rm", "-rf", _DEV_OUT, "-f", _DEV_TOOL], a.device)
+    readable = _root_shell(
+        f"chmod -R a+rX {shlex.quote(_DEV_OUT)}", a.device, root_mode
+    )
+    if readable.returncode != 0:
+        _cleanup_device(a.device, root_mode, a.keep_tool)
+        _emit({"ok": False, "package": pkg, "pid": int(pid),
+               "error": "could not make device dumps readable for adb pull"}, a.format)
+        return 1
+
+    pull = _adb(["pull", _DEV_OUT, a.outdir], a.device)
+    _cleanup_device(a.device, root_mode, a.keep_tool)
+    if pull.returncode != 0:
+        _emit({"ok": False, "package": pkg, "pid": int(pid),
+               "error": f"adb pull failed: {pull.stderr.strip()[:300]}"}, a.format)
+        return 1
 
     # enumerate pulled dex
     dex_files = []
-    pulled_root = os.path.join(a.outdir, os.path.basename(_DEV_OUT.rstrip("/")))
+    pulled_root = os.path.join(a.outdir, os.path.basename(_DEV_OUT))
     search_roots = [pulled_root, a.outdir]
     for root in search_roots:
         if os.path.isdir(root):

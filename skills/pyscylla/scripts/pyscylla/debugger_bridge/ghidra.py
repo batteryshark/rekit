@@ -1,9 +1,8 @@
 """Ghidra MCP adapter.
 
-Wraps calls to the Ghidra MCP tools that ship with this workspace
-(``x64dbgMCP/`` sibling, plus the standalone ``ghidra_*`` tools).
-Use this for static analysis flows where you have an imported Ghidra
-project but no live process.
+Wraps calls to Ghidra MCP tools supplied by the host. Use this for
+static analysis flows where you have an imported Ghidra project but
+no live process.
 """
 
 from __future__ import annotations

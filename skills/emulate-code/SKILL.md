@@ -36,5 +36,5 @@ rekit run emulate-code ./stub.bin --arch arm64 --base 0x400000 --format json
 
 ## Prerequisites
 
-- **python3 ≥ 3.8** — Unicorn is vendored under `runtime/site` (native; the vendored
+- **python3 ≥ 3.8** — Unicorn is installed under `scripts/site` (native; the local
   tree is platform-specific — rebuild with `scripts/build.sh` on a new platform).

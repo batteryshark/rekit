@@ -1,9 +1,9 @@
 """pyscylla — rekit dispatcher for the libscylla Python bindings (IAT rebuild).
 
-Wraps the vendored pyscylla package (scripts/pyscylla/) + native DLLs
-(scripts/bin/libscylla-{x86,x64}.dll). Forwards `op` + args to the pyscylla CLI,
-forcing JSON output for machine consumption. Windows-only (the libscylla DLL and
-the live-process operations require Windows + a matching-arch Python).
+Wraps the pyscylla package (scripts/pyscylla/) and an operator-supplied libscylla
+DLL. Forwards `op` + args to the pyscylla CLI, forcing JSON output for machine
+consumption. Windows-only (the external DLL and live-process operations require
+Windows + matching-arch Python).
 
     python3 run.py <op> [op-args...] [--json]
 
@@ -74,7 +74,7 @@ def main(argv: list[str]) -> int:
                "error": "libscylla DLL not loadable — Windows + matching-arch Python required",
                "detail": err[:400],
                "hint": "x64 target → 64-bit Python + libscylla-x64.dll; x86 target → 32-bit Python + libscylla-x86.dll. "
-                       "Run on Windows."})
+                       "Obtain libscylla from its upstream GPL project, review its license, set PYSCYLLA_DLL, and run on Windows."})
         return 127
 
     # Try to surface pyscylla's own JSON object; fall back to wrapping raw output.

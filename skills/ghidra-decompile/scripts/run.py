@@ -55,7 +55,7 @@ def main(argv: list[str]) -> int:
     out = os.path.abspath(os.path.join(a.outdir, "decompiled.c"))
     scriptdir = os.path.dirname(os.path.abspath(__file__))
     proj = tempfile.mkdtemp(prefix="ghidra_proj_")
-    cmd = [tool, proj, "unmaskproj", "-import", os.path.abspath(a.input),
+    cmd = [tool, proj, "rekit-project", "-import", os.path.abspath(a.input),
            "-scriptPath", scriptdir, "-postScript", "ghidra_decompile.py", out,
            "-deleteProject", "-analysisTimeoutPerFile", "1800"]
     try:

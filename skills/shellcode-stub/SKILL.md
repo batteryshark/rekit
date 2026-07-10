@@ -7,7 +7,7 @@ description: "CONSTRUCT: wrap a raw shellcode blob into a runnable native PoC �
 
 **🔨 Construct tier — builds a runnable PoC around shellcode; does not run it.**
 
-## Why this exists
+## Workflow
 
 Closes the write-side chain. `asm-assemble` makes bytes; `shellcode-stub` turns those
 bytes into a **native executable** you can actually detonate or emulate:

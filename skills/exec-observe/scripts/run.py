@@ -3,8 +3,7 @@
 
 A minimal behavioral primitive: run the target in a fresh working directory with a
 timeout, and capture exit code, stdout/stderr, wall-clock time, and any files it
-created. This is the seed of the dynamic tier — richer skills add syscall/network
-tracing (strace/dtruss, Frida, packet capture).
+created. Use the tracer skills when syscall, API, or network visibility is required.
 
 ⚠️ This EXECUTES the target. Run it only where you don't mind the risk — a disposable
 VM or a dedicated analysis box — or behind an isolation provider. rekit's dispatcher

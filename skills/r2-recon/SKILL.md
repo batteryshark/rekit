@@ -9,12 +9,10 @@ Cross-format static recon of a native binary with [radare2](https://radare.org).
 
 ## When to use
 
-A native executable/library (ELF / PE / Mach-O / DEX / …) where you want one
-cross-format pass that also reports the *relational* view r2 is good at —
-analysed functions, entry points, decoded strings (incl. UTF-16) — not just a
-structural parse of one format. Triages with `bin-triage` first, or jump
-straight in; pair with `native-decompile` (rizin `pdg`) to read the
-interesting functions.
+Use this for a cross-format pass over a native executable or library (ELF / PE /
+Mach-O / DEX / …) that connects analyzed functions, entry points, and decoded strings,
+including UTF-16. Start with `bin-triage` when the format is unknown; pair the result
+with `native-decompile` (rizin `pdg`) to read interesting functions.
 
 ## What it does
 

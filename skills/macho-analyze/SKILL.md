@@ -11,8 +11,8 @@ with [macholib](https://github.com/ronaldoussoren/macholib).
 ## When to use
 
 You have a macOS/iOS binary and want a fast read on what it is and whether it looks
-sketchy — without running it. Completes the PE/ELF/Mach-O triage trio; feeds an MCD
-reading via `BINARY.*` atoms.
+suspicious — without running it. This completes the PE/ELF/Mach-O triage trio and
+emits `BINARY.*` atoms for downstream analysis.
 
 ## What it reports
 
@@ -40,10 +40,10 @@ Non-Mach-O input fails honestly (`{"ok": false, "error": "not a valid Mach-O: �
 
 ## Prerequisites
 
-- **python3 ≥ 3.8** — macholib is vendored under `runtime/site` (pure-python), so no
+- **python3 ≥ 3.8** — macholib is installed under `scripts/site` (pure-python), so no
   network/install at analysis time.
 
 ## Rebuilding
 
-`runtime/site` is populated from the pinned `runtime/requirements.txt` by
+`scripts/site` is populated from the pinned `scripts/requirements.txt` by
 `scripts/build.sh` (`uv pip install --target`, build time only).
