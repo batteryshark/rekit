@@ -2,6 +2,10 @@
 skills/*/scripts/node_modules/
 skills/*/scripts/site/
 
+# Private or locally built native payloads: usable in-place, never redistributed.
+skills/dex-dump/bin/dex-dumper
+skills/pyscylla/bin/
+
 # Python / OS / tooling
 __pycache__/
 *.py[cod]

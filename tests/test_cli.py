@@ -87,7 +87,9 @@ class RekitCliTests(unittest.TestCase):
         )
         pyscylla = ROOT / "skills" / "pyscylla"
         self.assertTrue((pyscylla / "scripts" / "check-runtime.py").is_file())
-        self.assertFalse((pyscylla / "bin").exists())
+        self.assertIn(
+            "skills/pyscylla/bin/", (ROOT / ".gitignore").read_text(encoding="utf-8")
+        )
 
         dex_dump = ROOT / "skills" / "dex-dump"
         self.assertTrue((dex_dump / "scripts" / "build.sh").is_file())

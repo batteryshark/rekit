@@ -7,18 +7,26 @@ for agent-driven memory dump cleanup workflows.
 
 ## External libscylla setup
 
-Rekit intentionally does not bundle, download, or build `libscylla`. On Windows,
+Rekit intentionally does not commit, download, or build `libscylla`. On Windows,
 obtain an architecture-matched DLL from the external
-[Scylla project](https://github.com/NtQuery/Scylla), review its GPL-3.0-only license,
-and point `PYSCYLLA_DLL` to its absolute path:
+[Scylla project](https://github.com/NtQuery/Scylla) and review its GPL-3.0-only
+license. The simplest private setup is the Git-ignored local cache:
+
+```text
+skills/pyscylla/bin/libscylla-x64.dll
+skills/pyscylla/bin/libscylla-x86.dll
+```
+
+The loader selects the DLL matching Python's architecture. You may instead point
+`PYSCYLLA_DLL` to an absolute path:
 
 ```powershell
 $env:PYSCYLLA_DLL = "C:\tools\scylla\libscylla-x64.dll"
 bin/rekit doctor pyscylla
 ```
 
-The DLL may instead be available on `PATH` as `libscylla-x64.dll`,
-`libscylla-x86.dll`, or `libscylla.dll`. The environment variable is less ambiguous.
+The DLL may also be available on `PATH` as `libscylla-x64.dll`,
+`libscylla-x86.dll`, or `libscylla.dll`.
 
 From the Rekit repository root:
 
@@ -158,6 +166,6 @@ the repository's Apache-2.0 code and the optional GPL dependency visibly separat
 
 The Rekit-maintained adapter and orchestration code under `skills/pyscylla/scripts/`
 is distributed under Rekit's root Apache-2.0 license. The external Scylla/libscylla
-project is GPL-3.0-only and is not part of Rekit. Operators who obtain, build, use,
-modify, or redistribute it are responsible for reviewing and complying with the
-upstream terms.
+project is GPL-3.0-only and is not part of Rekit's tracked files. Ignored local DLLs
+remain operator-managed. Operators who obtain, build, use, modify, or redistribute
+them are responsible for reviewing and complying with the upstream terms.

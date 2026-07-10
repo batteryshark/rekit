@@ -10,11 +10,12 @@ of Windows PE binaries. The programmatic successor to the classic
 [Scylla](https://github.com/NtQuery/Scylla) GUI tool, designed for agent-driven
 memory-dump cleanup workflows.
 
-**Windows-only.** Rekit does not include, download, or build `libscylla`. Obtain an
-architecture-matched DLL from the external [Scylla project](https://github.com/NtQuery/Scylla),
-review its license, then set `PYSCYLLA_DLL` to its absolute path. A DLL named
-`libscylla-x64.dll`, `libscylla-x86.dll`, or `libscylla.dll` may alternatively be
-placed on `PATH`. Live-process operations use `OpenProcess` / `ReadProcessMemory`.
+**Windows-only.** Rekit does not commit, download, or build `libscylla`. Keep a private
+architecture-matched copy at `skills/pyscylla/bin/libscylla-x64.dll` or
+`libscylla-x86.dll`; that directory is Git-ignored and the loader discovers it
+automatically. You may instead set `PYSCYLLA_DLL` to an absolute path or put the DLL
+on `PATH`. Obtain it from the external [Scylla project](https://github.com/NtQuery/Scylla)
+and review its license. Live operations use `OpenProcess` / `ReadProcessMemory`.
 
 ## ⚠️ The arch-match rule (read first)
 
@@ -91,8 +92,8 @@ python -m pyscylla.mcp_server
 
 The Rekit-maintained adapter and orchestration code in this skill is distributed
 under Rekit's root Apache-2.0 license. `Scylla` and `libscylla` are separate,
-third-party software licensed GPL-3.0-only by their upstream authors. They are not
-part of this repository.
+third-party software licensed GPL-3.0-only by their upstream authors. Private DLLs in
+the ignored `bin/` directory are local operator files, not part of the repository.
 
 Anyone choosing to obtain, build, use, modify, or redistribute that external software
 is responsible for reviewing and complying with its upstream license. Read
