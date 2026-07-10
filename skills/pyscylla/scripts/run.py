@@ -74,7 +74,7 @@ def main(argv: list[str]) -> int:
                "error": "libscylla DLL not loadable — Windows + matching-arch Python required",
                "detail": err[:400],
                "hint": "x64 target → 64-bit Python + libscylla-x64.dll; x86 target → 32-bit Python + libscylla-x86.dll. "
-                       "Obtain libscylla from its upstream GPL project, review its license, set PYSCYLLA_DLL, and run on Windows."})
+                       "Keep a private copy in skills/pyscylla/bin or set PYSCYLLA_DLL; review the upstream GPL license and run on Windows."})
         return 127
 
     # Try to surface pyscylla's own JSON object; fall back to wrapping raw output.

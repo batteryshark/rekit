@@ -17,6 +17,13 @@ def _candidate() -> Path | None:
 
     suffix = "x64" if sys.maxsize > 2**32 else "x86"
     names = (f"libscylla-{suffix}.dll", "libscylla.dll")
+
+    local_bin = Path(__file__).resolve().parent.parent / "bin"
+    for name in names:
+        path = local_bin / name
+        if path.is_file():
+            return path
+
     for directory in os.environ.get("PATH", "").split(os.pathsep):
         if not directory:
             continue
@@ -52,7 +59,8 @@ def main() -> int:
     path = _candidate()
     if path is None:
         print(
-            "external libscylla DLL not found; set PYSCYLLA_DLL to its absolute path",
+            "libscylla DLL not found; place a private copy in skills/pyscylla/bin "
+            "or set PYSCYLLA_DLL to its absolute path",
             file=sys.stderr,
         )
         return 1

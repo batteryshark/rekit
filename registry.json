@@ -2642,7 +2642,7 @@
           "python3",
           "scripts/check-runtime.py"
         ],
-        "install_hint": "On Windows, obtain or build an arch-matched libscylla DLL from https://github.com/NtQuery/Scylla, review its GPL-3.0-only terms, and set PYSCYLLA_DLL to its absolute path. Rekit does not download or bundle it."
+        "install_hint": "On Windows, obtain or build an arch-matched libscylla DLL from https://github.com/NtQuery/Scylla, review its GPL-3.0-only terms, and keep a private copy in skills/pyscylla/bin or set PYSCYLLA_DLL. Rekit does not download or commit it."
       }
     ],
     "safety": {
@@ -2738,9 +2738,9 @@
       "source": "https://github.com/NtQuery/Scylla",
       "vendored": "scripts/pyscylla/",
       "runner": "scripts/run.py",
-      "external": "libscylla DLL supplied by the operator via PYSCYLLA_DLL or PATH",
+      "external": "libscylla DLL supplied by the operator in the Git-ignored skills/pyscylla/bin directory, via PYSCYLLA_DLL, or on PATH",
       "license": "Rekit adapter: Apache-2.0; external Scylla/libscylla: GPL-3.0-only",
-      "note": "Rekit does not bundle, fetch, or build libscylla. The operator must obtain it from upstream, comply with its license, and match the architectures of Python, libscylla, and the target. Dump-recovery path: iat-find → dump → fix → rebuild. Pair with pe-unmap for realignment."
+      "note": "Rekit does not commit, fetch, or build libscylla. A private local copy may live in the Git-ignored skills/pyscylla/bin directory. The operator must obtain it from upstream, comply with its license, and match the architectures of Python, libscylla, and the target. Dump-recovery path: iat-find → dump → fix → rebuild. Pair with pe-unmap for realignment."
     }
   },
   "qiling-emulate": {

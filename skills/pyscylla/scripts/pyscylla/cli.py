@@ -314,8 +314,8 @@ def main(argv: list[str] | None = None) -> int:
             print(f"error: {exc}", file=sys.stderr)
             print(
                 "hint: obtain an arch-matched libscylla DLL from its upstream "
-                "GPL project, review that license, and set PYSCYLLA_DLL to its "
-                "absolute path.",
+                "GPL project, review that license, and keep a private copy in "
+                "skills/pyscylla/bin or set PYSCYLLA_DLL to its absolute path.",
                 file=sys.stderr,
             )
             return 127
