@@ -430,12 +430,12 @@
       "source": "https://clang.llvm.org",
       "vendored": null,
       "runner": "scripts/run.py",
-      "note": "BYO clang (or cc/gcc). Seed of the CONSTRUCT kind — rekit produces artifacts, not just reads them. Pairs the analyze loop in reverse: build a PoC → inspect it with any decompiler, or --emit asm/ir to see what the compiler generates. To emulate/run the output, pass it to emulate-code (shellcode/obj) or exec-observe (exe)."
+      "note": "BYO clang (or cc/gcc). Build a PoC and inspect it with a decompiler, or use --emit asm/ir to inspect compiler output. Pass shellcode or object output to emulate-code; pass executables to exec-observe only in an appropriate analysis environment."
     }
   },
   "dex-dump": {
     "name": "Android DEX Dumper",
-    "description": "Dump decrypted DEX files from a RUNNING Android app's memory via the vendored panda-dex-dumper (ptrace attach on a rooted device). Defeats class-loading packers: the real DEX only exists in memory after the packer decrypts it, so this reads it live. Does NOT execute a sample on the host — attaches to an app the operator already launched on a connected device. BYO rooted device + adb.",
+    "description": "Dump decrypted DEX and CompactDex images from a RUNNING Android app's memory with Rekit's clean-room Apache-2.0 device tool (ptrace on a rooted aarch64 device). Defeats class-loading packers by reading the image after the app decrypts it. Does not launch the app or execute a sample on the host. BYO rooted device + adb; build the device tool from the included Rust source.",
     "version": "0.1.0",
     "capabilities": [
       "dump-dex",
@@ -466,7 +466,7 @@
       "executes_input": "sandboxed",
       "network": "none",
       "tier": 2,
-      "notes": "Invasive but contained to a connected Android device — NOT host execution. panda-dex-dumper ptrace-attaches to an already-running app (the operator launched it) to read decrypted DEX from its memory. Requires a ROOTED device (ptrace). Pushes a vendored aarch64 binary to /data/local/tmp/, runs it on-device, pulls the dumped DEX, and cleans up. No host sample detonation; not behind the --allow-dynamic gate. The target app must be past its splash screen so the packer has decrypted the real DEX."
+      "notes": "Invasive but contained to a connected Android device — NOT host execution. Rekit's device tool ptrace-attaches to an app the operator already launched and reads decrypted DEX/CDEX from memory. The runner never launches the target. Requires a rooted aarch64 device, pushes the locally built tool to /data/local/tmp, pulls dumps, and cleans up. The target must be past its splash screen so its loader has decrypted the real image."
     },
     "entry": {
       "command": [
@@ -496,7 +496,7 @@
           "name": "--keep-tool",
           "type": "flag",
           "required": false,
-          "desc": "leave panda-dex-dumper on the device after pulling (default: clean up)"
+          "desc": "leave rekit-dex-dumper on the device after pulling (default: clean up)"
         },
         {
           "name": "--format",
@@ -525,12 +525,16 @@
       }
     },
     "payload": {
-      "tool": "panda-dex-dumper",
-      "source": "https://github.com/panda3zy/panda-dex-dumper",
-      "vendored": "bin/panda-dex-dumper",
+      "tool": "Rekit dex-dumper",
+      "source": "https://github.com/batteryshark/rekit/tree/main/skills/dex-dump/scripts/dex-dumper",
+      "source_path": "scripts/dex-dumper/",
+      "vendored": "bin/dex-dumper",
       "runner": "scripts/run.py",
       "arch": "aarch64 (device-side)",
-      "note": "Vendored aarch64 ELF — runs ON the Android device, pushed by the runner via adb. Defeats class-loading packers by dumping the DEX from memory after the packer decrypts it (not from the APK on disk). Prereq-gated on adb; device must be rooted for ptrace. Pair with the Android analyzers / de4dot-class deobfuscators on the pulled DEX tree."
+      "build": "scripts/build.sh",
+      "build_default": false,
+      "license": "Apache-2.0",
+      "note": "Original clean-room, dependency-free Rust implementation. The build requires Rust 1.74+, the aarch64-linux-android target, and Android NDK r25+; it installs bin/dex-dumper. The runner executes it only on the connected device and pulls /data/local/tmp/rekit-dex-dump. No third-party dumper source or binary is included."
     }
   },
   "dotnet-analyze": {
@@ -760,7 +764,7 @@
       "runner": "scripts/analyze.py",
       "build": "scripts/build.sh",
       "pure_python": true,
-      "note": "Vendored via `uv pip install --target scripts/site` (pure-python, portable). Companion to hex-view for the 'I have a binary' case; emits BINARY.* atoms that map onto an MCD reading."
+      "note": "Installed via `uv pip install --target scripts/site` (pure Python, portable). Pair with hex-view for raw bytes; the analyzer emits structured BINARY.* atoms."
     }
   },
   "emulate-code": {
@@ -866,7 +870,7 @@
   },
   "exec-observe": {
     "name": "Execute & Observe (dynamic)",
-    "description": "DYNAMIC: run a target in a fresh working directory with a timeout and capture its behavior — exit code, stdout/stderr, wall-clock time, and files it creates. The seed of the dynamic tier (richer skills add syscall/network tracing). EXECUTES the target — run only where you don't mind the risk.",
+    "description": "DYNAMIC: run a target in a fresh working directory with a timeout and capture its behavior — exit code, stdout/stderr, wall-clock time, and files it creates. EXECUTES the target; use the tracer skills for syscall, API, or network visibility. Run only where you accept the target's risk.",
     "version": "0.1.0",
     "capabilities": [
       "execute-target",
@@ -939,7 +943,7 @@
       "vendored": null,
       "runner": "scripts/run.py",
       "pure_stdlib": true,
-      "note": "First DYNAMIC-tier skill (safety.executes_input=full). Establishes the consent pattern: the dispatcher requires --allow-dynamic; the runner double-checks. Isolation is a separate optional axis — native execution is a first-class mode for RE on a don't-care box. Next dynamic skills: strace/dtruss trace, Frida hooking, network capture, Unicorn emulation."
+      "note": "The dispatcher requires --allow-dynamic and the runner verifies consent again. Consent is not isolation: use a disposable VM, dedicated analysis host, or another boundary appropriate for the target."
     }
   },
   "frida-trace": {
@@ -1343,7 +1347,7 @@
       "vendored": null,
       "runner": "scripts/hexview.py",
       "pure_stdlib": true,
-      "note": "Zero-dependency skill — no scripts/ to vendor and no build step; the runner is pure Python stdlib. A third packaging pattern alongside js-deobfuscate (node_modules) and pyc-decompile (pip --target)."
+      "note": "Zero-dependency skill with a pure Python standard-library runner and no build step."
     }
   },
   "ioc-extract": {
@@ -1659,7 +1663,7 @@
       "runner": "scripts/run.mjs",
       "build": "scripts/build.sh",
       "native_dependency": "isolated-vm (ships prebuilds for darwin-arm64/x64, linux-x64/arm64 glibc+musl, win32-x64)",
-      "note": "Vendored production node_modules (not a single-file bundle) because webcrack's isolated-vm native addon can't be inlined by a JS bundler. Committed so the skill is offline and reproducible; re-run build.sh to refresh + re-pin."
+      "note": "The local node_modules tree cannot be reduced to a single-file bundle because webcrack's isolated-vm native addon must load a platform binary. Build it from package-lock.json with rekit install js-deobfuscate."
     }
   },
   "js-sourcemap-extract": {
@@ -1970,7 +1974,7 @@
       "runner": "scripts/analyze.py",
       "build": "scripts/build.sh",
       "pure_python": true,
-      "note": "Vendored via `uv pip install --target scripts/site` (pure-python, portable). Completes the PE/ELF/Mach-O triage trio; emits BINARY.* atoms that map onto an MCD reading."
+      "note": "Installed via `uv pip install --target scripts/site` (pure Python, portable). Completes the PE/ELF/Mach-O triage trio and emits structured BINARY.* atoms."
     }
   },
   "native-decompile": {
@@ -2226,9 +2230,9 @@
     },
     "payload": {
       "tool": "(builtin data)",
-      "vendored": "bin/ordinals.json",
+      "vendored": "assets/ordinals.json",
       "runner": "scripts/run.py",
-      "note": "Consolidated from the standalone ordlookup package (3 py files → 1 JSON). 515 ordinals across ws2_32 + oleaut32; wsock32/mswsock aliased to ws2_32. Pure-stdlib runner. Refactored to drop the package overhead and dedupe the wsock32 copy of the ws2_32 table."
+      "note": "The static database contains 515 ordinals across ws2_32 and oleaut32; wsock32/mswsock reuse the ws2_32 entries. The runner uses only the Python standard library."
     }
   },
   "pe-analyze": {
@@ -2302,7 +2306,7 @@
       "runner": "scripts/analyze.py",
       "build": "scripts/build.sh",
       "pure_python": true,
-      "note": "Vendored via `uv pip install --target scripts/site` (pure-python, portable). Companion to elf-analyze / hex-view; emits BINARY.* atoms that map onto an MCD reading."
+      "note": "Installed via `uv pip install --target scripts/site` (pure Python, portable). Pair with elf-analyze or hex-view; the analyzer emits structured BINARY.* atoms."
     }
   },
   "pe-unmap": {
@@ -2613,7 +2617,7 @@
   },
   "pyscylla": {
     "name": "IAT Rebuilder (libscylla bindings)",
-    "description": "Dump, realign, and rebuild Import Address Tables of Windows PE binaries via Python bindings to libscylla (the engine behind the classic Scylla GUI). The programmatic successor to Scylla for agent-driven memory-dump cleanup: process enumeration (arch-aware), live dump, IAT search/parse/fix, XML tree round-trip, and reference scanning. Windows-only (vendored libscylla-{x86,x64}.dll + matching-arch Python). DYNAMIC on a live process (ReadProcessMemory) but does not execute the target.",
+    "description": "Dump, realign, and rebuild Import Address Tables of Windows PE binaries through Rekit's Python adapter for the external libscylla engine. Supports process enumeration, live dump, IAT search/parse/fix, XML tree round-trip, and reference scanning. Windows-only; bring your own arch-matched libscylla DLL and comply with its upstream GPL-3.0-only license. DYNAMIC on a live process (ReadProcessMemory) but does not execute the target.",
     "version": "0.1.0",
     "capabilities": [
       "iat-rebuild",
@@ -2631,13 +2635,21 @@
           "--version"
         ],
         "install_hint": "Install Python 3.8+ (3.10+ preferred). MUST match the target arch: x64 target → 64-bit Python, x86 target → 32-bit Python."
+      },
+      {
+        "tool": "external libscylla DLL",
+        "check": [
+          "python3",
+          "scripts/check-runtime.py"
+        ],
+        "install_hint": "On Windows, obtain or build an arch-matched libscylla DLL from https://github.com/NtQuery/Scylla, review its GPL-3.0-only terms, and set PYSCYLLA_DLL to its absolute path. Rekit does not download or bundle it."
       }
     ],
     "safety": {
       "executes_input": "no",
       "network": "none",
       "tier": 2,
-      "notes": "Reads a live process's memory (ReadProcessMemory / OpenProcess) to dump + rebuild its IAT — invasive but does NOT execute the target. Requires Windows (libscylla is a native DLL) and arch-matched Python: sizeof(DWORD_PTR) is baked into libscylla at compile time, so a 64-bit libscylla only correctly processes 64-bit targets (wrong arch = silently corrupt output). Use the `arch` op to check the match before dump/fix. GPL-3.0-only (inherited from upstream Scylla)."
+      "notes": "Reads a live process's memory (ReadProcessMemory / OpenProcess) to dump + rebuild its IAT — invasive but does NOT execute the target. Requires Windows, an operator-supplied libscylla DLL, and arch-matched Python: sizeof(DWORD_PTR) is baked into libscylla at compile time, so a 64-bit libscylla only correctly processes 64-bit targets (wrong arch = silently corrupt output). Use the `arch` op before dump/fix. Rekit's adapter is Apache-2.0; external Scylla/libscylla is GPL-3.0-only and remains the operator's licensing responsibility."
     },
     "entry": {
       "command": [
@@ -2722,13 +2734,13 @@
       }
     },
     "payload": {
-      "tool": "pyscylla (libscylla bindings)",
+      "tool": "Rekit pyscylla adapter + external libscylla",
       "source": "https://github.com/NtQuery/Scylla",
-      "vendored": "scripts/pyscylla/ + scripts/bin/libscylla-{x86,x64}.dll",
+      "vendored": "scripts/pyscylla/",
       "runner": "scripts/run.py",
-      "build": "scripts/build-native.ps1",
-      "license": "GPL-3.0-only (upstream Scylla)",
-      "note": "The headline dump-recovery tool: iat-find → dump → fix → rebuild. The runner forwards `op` + args to the vendored pyscylla CLI (--json forced). Also ships an MCP server (scripts/pyscylla/mcp_server.py) for direct LLM-agent integration. Arch-match rule is critical — run `arch` first. Pair with pe-unmap for realignment."
+      "external": "libscylla DLL supplied by the operator via PYSCYLLA_DLL or PATH",
+      "license": "Rekit adapter: Apache-2.0; external Scylla/libscylla: GPL-3.0-only",
+      "note": "Rekit does not bundle, fetch, or build libscylla. The operator must obtain it from upstream, comply with its license, and match the architectures of Python, libscylla, and the target. Dump-recovery path: iat-find → dump → fix → rebuild. Pair with pe-unmap for realignment."
     }
   },
   "qiling-emulate": {
@@ -3356,9 +3368,9 @@
     "payload": {
       "tool": "yara",
       "source": "https://virustotal.github.io/yara/",
-      "vendored": "rules/starter.yar",
+      "vendored": "assets/starter.yar",
       "runner": "scripts/run.py",
-      "note": "BYO yara/yara-x CLI on PATH (native tool; not bundled). We DO bundle a starter rule pack (rules/starter.yar): embedded/base64 PE, UPX, PHP webshell, Windows exec/download cradle, curl|sh. Bring a full corpus via --rules. Dispatcher prereq gate = honest degradation."
+      "note": "BYO yara/yara-x CLI on PATH (native tool; not bundled). The starter pack at assets/starter.yar covers embedded/base64 PE, UPX, PHP webshell, Windows exec/download cradles, and curl|sh. Bring a full corpus via --rules."
     }
   }
 }

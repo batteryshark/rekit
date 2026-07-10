@@ -19,7 +19,7 @@ skills (which look at *tactics*) with *signature* matching.
 Runs `yara` (or `yara-x`/`yr`) with your rules over the target and reports each match
 as `{rule, target}`. Read-only — YARA matches patterns; it never runs the target.
 
-Ships a small **starter rule pack** (`rules/starter.yar`): embedded/base64-encoded
+Ships a small **starter rule pack** (`assets/starter.yar`): embedded/base64-encoded
 PE, UPX packing, PHP webshell eval, Windows exec/download cradles, and `curl|sh`
 droppers. **This is a starting point, not a corpus** — for real coverage point
 `--rules` at [YARA-Rules](https://github.com/Yara-Rules/rules),

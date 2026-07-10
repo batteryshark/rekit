@@ -1,8 +1,7 @@
 """x64dbg MCP adapter.
 
-Wraps calls to the x64dbg MCP tools that ship with this workspace
-(``x64dbgMCP/``). The MCP server must be reachable; pyscylla does
-not manage the x64dbg lifecycle.
+Wraps calls to an x64dbg MCP server. The server must be reachable;
+pyscylla does not manage the x64dbg lifecycle.
 """
 
 from __future__ import annotations
@@ -25,9 +24,8 @@ class X64DbgMcpFeed(DebuggerFeed):
     def _tool(self, name: str) -> object:
         """Look up an MCP tool by name, caching the result.
 
-        We rely on the host environment (Claude Desktop / opencode)
-        binding the MCP tools to the global namespace — the caller
-        passes them in explicitly via :meth:`bind_tools` if not.
+        The caller binds the MCP tool functions explicitly with
+        :meth:`bind_tools`.
         """
         if name in self._tools:
             return self._tools[name]

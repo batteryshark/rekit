@@ -33,7 +33,7 @@ traces — the format varies by version, so the raw tail is always returned too)
 ## Prerequisites
 
 - **Qiling** (vendored): `rekit install qiling-emulate` → `scripts/build.sh` vendors it
-  into `runtime/site`. Heavier than Unicorn (pulls capstone/keystone/pefile/…).
+  into `scripts/site`. Heavier than Unicorn (pulls capstone/keystone/pefile/…).
 - **A rootfs** (BYO): grab one matching the target's OS/arch from
   [qilingframework/rootfs](https://github.com/qilingframework/rootfs). Its libraries/DLLs
   back the emulation. Without `--rootfs` the runner refuses with that hint (exit 3).

@@ -1,0 +1,19 @@
+[package]
+name = "rekit-dex-dumper"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.74"
+license = "Apache-2.0"
+description = "Clean-room Android in-memory DEX and CompactDex dumper for rekit"
+publish = false
+
+[[bin]]
+name = "dex-dumper"
+path = "src/main.rs"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

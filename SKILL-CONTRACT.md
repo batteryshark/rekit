@@ -1,24 +1,31 @@
 # Skill contract
 
-A skill is a directory under `skills/<id>/` with this shape:
+A skill is a directory under `skills/<id>/`. rekit follows the standard Agent Skills
+layout and adds one optional directory for prebuilt native executables:
 
 ```
 skills/<id>/
-  SKILL.md       agent/human-facing doc (required) — name + description frontmatter + Markdown body
-  scripts/       runner + build scripts + vendored deps (run.py, run.mjs, build.sh, site/, node_modules/, ...)
-  bin/           committed native binaries / bundled data payloads     (optional)
-  references/    docs loaded on demand                                  (optional)
-  assets/        bundled data files the runner reads, templates, rules  (optional)
+  SKILL.md       trigger and workflow                                      (required)
+  scripts/       executable source and build scripts                       (optional)
+  references/    detailed documentation loaded on demand                   (optional)
+  assets/        data, rules, templates, and other static resources         (optional)
+  bin/           prebuilt native executables and their license files        (rekit extension; optional)
 ```
+
+Only `SKILL.md` is required. Do not add empty or placeholder directories. Python,
+JavaScript, and shell entry points belong in `scripts/`, which is the conventional
+Agent Skills executable-code directory. Use a skill-local `bin/` only when the payload
+is already a native executable, such as `pe_unmapper.exe`; the repository-level
+`bin/rekit` remains the human-facing catalog dispatcher.
 
 The machine manifest for **every** skill lives in ONE central file, `registry.json`,
 keyed by skill id — *not* inside the skill folders. A skill's folder holds only its doc
-(`SKILL.md`) and its payload (`scripts/`, `bin/`, …). `SKILL.md`'s frontmatter carries
-just `name` + `description`, which keeps it a valid
-[Agent Skill](https://docs.claude.com/en/docs/agents-and-tools/agent-skills); those two
-fields are a synced projection of the registry (regenerate with `rekit sync-docs`). The
-folder names (`scripts/`, `references/`, `assets/`, `bin/`) follow the Agent Skill
-conventions.
+(`SKILL.md`) and its resources. `SKILL.md`'s frontmatter carries just `name` +
+`description`, a deliberately narrow subset of the
+[Agent Skills specification](https://agentskills.io/specification). Those fields are a
+synced projection of the registry (regenerate with `rekit sync-docs`). `registry.json`
+and skill-local `bin/` directories are rekit extensions permitted by the open format;
+neither changes how a compatible agent discovers and loads `SKILL.md`.
 
 The dispatcher (`bin/rekit`) is **pure stdlib**: it reads `registry.json` (plain JSON)
 and pairs each entry with its `skills/<id>/` directory. Registration is a registry
@@ -80,8 +87,8 @@ description: "Deobfuscate and unpack obfuscated JavaScript with webcrack. Use wh
 
 ### Manifest field notes (each key of a `registry.json` entry)
 
-- **`capabilities`** — stable capability strings a caller matches against (e.g.
-  `unmask-re` maps `deobfuscate-js` onto its `deobfuscate` work item). Keep them
+- **`capabilities`** — stable capability strings a caller matches against (e.g. a
+  consumer maps `deobfuscate-js` onto its `deobfuscate` work item). Keep them
   boring and reusable across skills.
 - **`kind`** *(optional, default `"analyze"`)* — the axis of what the skill *does to the
   world*. `"analyze"` skills READ/observe a target (the vast majority). `"construct"`
@@ -92,7 +99,7 @@ description: "Deobfuscate and unpack obfuscated JavaScript with webcrack. Use wh
   if a skill is somehow both); `search --construct` / `--analyze` filter on it.
 - **`prerequisites`** — external tools the skill needs on `PATH`. `check` is run
   verbatim; the first `\d+(\.\d+)*` in its output is compared to `min_version`.
-  Prereqs are the *only* thing that can make a skill unavailable.
+  Missing prerequisites and declared payload files make a skill unavailable.
 - **`safety`** — `executes_input` (`"no"` | `"sandboxed"` | `"full"`) and `network`
   let a caller pick a sandbox tier. Analysis skills should be `"no"` / `network:
   "none"` where possible; use `"sandboxed"` when the skill runs a narrow slice of the
@@ -131,26 +138,29 @@ node skills/<id>/scripts/<payload> <arg1> <arg2> ...
 # programmatic (Python): read the skill's registry.json entry, check prereqs, exec entry.command + args
 ```
 
-The dispatcher refuses to run a skill whose prerequisites are missing and prints the
-install hint instead — that is the honest-degradation path.
+The dispatcher refuses to run a skill whose prerequisites or declared payloads are
+missing and prints the recovery hint instead — that is the honest-degradation path.
 
 ## Building a skill's payload
 
-Tools are vendored at **build time**, never at analysis time. A skill's
-`scripts/build.sh` produces its vendored payload alongside the runner in `scripts/`
-(e.g. `scripts/site/` via `uv pip install --target`, or `scripts/node_modules/` from a
-pinned npm tree). Committed native binaries and bundled data payloads live in `bin/`.
-Commit the built payload so the skill is offline and reproducible; re-run `build.sh`
-to refresh + re-pin.
+Tools are installed at **build time**, never at analysis time. A skill's
+`scripts/build.sh` produces a local runtime alongside the runner in `scripts/` (for
+example, `scripts/site/` via `uv pip install --target` or `scripts/node_modules/` via
+`npm ci`). Those generated trees are ignored; their versioned requirements files and
+lockfiles are committed. Native executables live in `bin/`; data and rules live in
+`assets/`. Commit shipped payloads with their applicable licenses. Run
+`bin/rekit install [<id>]` after cloning and whenever a runtime manifest changes.
 
 ## Adding a skill
 
 1. Add a `"<id>": { … }` entry to `registry.json` (name, description, capabilities,
    prerequisites, safety, entry — see the shape above).
 2. `mkdir skills/<id>` with a `SKILL.md` (Markdown body) and put the runner in
-   `scripts/` (plus a `scripts/build.sh` if it vendors deps); commit native binaries /
-   data payloads to `bin/` and any templates or rule packs to `assets/`.
+   `scripts/` (plus a `scripts/build.sh` if it installs local deps). Put prebuilt native
+   executables in `bin/`; put data, templates, and rule packs in `assets/`.
 3. `bin/rekit sync-docs` to write the `name` + `description` frontmatter into SKILL.md
    from the registry, then `bin/rekit doctor <id>` to confirm prereqs (and that the
    entry and directory line up).
-4. Done — `registry.json` is the registration.
+4. Run `python3 -m unittest discover -s tests -v` and exercise the changed runner with
+   a representative fixture.
+5. Done — `registry.json` is the registration.

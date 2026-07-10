@@ -46,7 +46,7 @@ JSON mode prints `{ok, path, offset, length, totalBytes, sha256, truncated, rows
 ## Prerequisites
 
 - **python3 ≥ 3.8** — the only requirement, and it's pure stdlib, so there is no
-  `runtime/` to vendor and no build step.
+  local runtime to build.
 
 ## Options
 

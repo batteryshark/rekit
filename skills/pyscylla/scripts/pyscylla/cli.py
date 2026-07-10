@@ -313,8 +313,9 @@ def main(argv: list[str] | None = None) -> int:
         if isinstance(exc, DllNotFoundError):
             print(f"error: {exc}", file=sys.stderr)
             print(
-                "hint: build libscylla first — see pyscylla/build-native.ps1 "
-                "or the 'Building libscylla' section of the README.",
+                "hint: obtain an arch-matched libscylla DLL from its upstream "
+                "GPL project, review that license, and set PYSCYLLA_DLL to its "
+                "absolute path.",
                 file=sys.stderr,
             )
             return 127

@@ -46,10 +46,10 @@ Non-PE → honest failure.
 
 ## Prerequisites
 
-- **python3 ≥ 3.8** — dnfile is vendored under `runtime/site` (pure-python). No .NET
+- **python3 ≥ 3.8** — dnfile is installed under `scripts/site` (pure-python). No .NET
   runtime, no network/install at analysis time.
 
 ## Rebuilding
 
-`runtime/site` is populated from the pinned `runtime/requirements.txt` by
+`scripts/site` is populated from the pinned `scripts/requirements.txt` by
 `scripts/build.sh` (`uv pip install --target`, build time only).

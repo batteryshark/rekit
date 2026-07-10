@@ -3,7 +3,7 @@
 #
 # Invoked by run.py as: analyzeHeadless ... -postScript ghidra_decompile.py <outpath>
 # Ghidra provides the globals `currentProgram`, `getScriptArgs()`, etc.
-# @category unmask
+# @category rekit
 
 from ghidra.app.decompiler import DecompInterface
 from ghidra.util.task import ConsoleTaskMonitor
@@ -27,6 +27,6 @@ try:
                 fh.write(dec.getC())
                 fh.write("\n")
                 count += 1
-    print("unmask: decompiled %d function(s) -> %s" % (count, out_path))
+    print("rekit: decompiled %d function(s) -> %s" % (count, out_path))
 finally:
     fh.close()

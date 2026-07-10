@@ -378,11 +378,9 @@ def run(path: str, outdir: str | None, max_bytes: int) -> dict:
                 lit = json.dumps(decoded, ensure_ascii=False)
                 fh.write("/* key=%d %s off=%d */ %s\n" % (key, mode, off, lit))
 
-    # Emit an atom per decode site so the recovered plaintext SURFACES as evidence in a
-    # finding — not just written to decoded-strings.js. The emitted atom is the real
-    # judgment-free parallax atom XFRM.BITWISE (constant-key XOR is a bitwise transform),
-    # tagged method="covert-scan" so the consumer's lens makes the obfuscation judgment
-    # by provenance. The recovered plaintext stays in the note as evidence.
+    # Emit an atom per decode site for callers that consume stdout instead of generated
+    # files. XFRM.BITWISE identifies the transform; the recovered plaintext stays in the
+    # note as evidence and method="covert-scan" preserves provenance.
     # No file/line: the ingest prefixes the artifact's origin (logical) path.
     atoms = []
     for key, off, mode, decoded, how in results[:50]:

@@ -15,8 +15,8 @@ suspicious package, or (most commonly) bytecode carved out of a **PyInstaller** 
 py2exe bundle. Decompiling recovers readable source you can then scan for the real
 behaviour.
 
-In an MCD/analysis pipeline: when inventory finds `.pyc` artifacts with no matching
-source, decompile them and **re-scan the recovered `.py`**.
+When inventory finds `.pyc` artifacts with no matching source, decompile them and
+rescan the recovered `.py`.
 
 ## What it does
 
@@ -33,7 +33,7 @@ the bytecode's version and tells you whether it's in range; for older bytecode u
 ```bash
 rekit run pyc-decompile ./payload.pyc ./out
 # or
-python3 skills/pyc-decompile/runtime/run.py ./payload.pyc ./out
+python3 skills/pyc-decompile/scripts/run.py ./payload.pyc ./out
 ```
 
 Writes `out/decompiled.py` and prints a JSON result:
@@ -49,11 +49,11 @@ a pointer to the right tool — it does not emit a half-guessed decompilation.
 ## Prerequisites
 
 - **python3 ≥ 3.8** — to run the decompiler. The *target* `.pyc` may be a different
-  version; decompyle3 (and its pure-Python deps) is vendored under `runtime/site`,
+  version; decompyle3 (and its pure-Python deps) is installed under `scripts/site`,
   so no network/install at analysis time.
 
 ## Rebuilding the payload
 
-`runtime/site` is populated from a pinned `runtime/requirements.txt` by
+`scripts/site` is populated from a pinned `scripts/requirements.txt` by
 `scripts/build.sh` (`uv pip install --target`, build time only). Pure-Python, so the
 vendored tree is portable across OS/arch.

@@ -1,6 +1,6 @@
 ---
 name: pyscylla
-description: "Dump, realign, and rebuild Import Address Tables of Windows PE binaries via Python bindings to libscylla (the engine behind the classic Scylla GUI). The programmatic successor to Scylla for agent-driven memory-dump cleanup: process enumeration (arch-aware), live dump, IAT search/parse/fix, XML tree round-trip, and reference scanning. Windows-only (vendored libscylla-{x86,x64}.dll + matching-arch Python). DYNAMIC on a live process (ReadProcessMemory) but does not execute the target."
+description: "Dump, realign, and rebuild Import Address Tables of Windows PE binaries through Rekit's Python adapter for the external libscylla engine. Supports process enumeration, live dump, IAT search/parse/fix, XML tree round-trip, and reference scanning. Windows-only; bring your own arch-matched libscylla DLL and comply with its upstream GPL-3.0-only license. DYNAMIC on a live process (ReadProcessMemory) but does not execute the target."
 ---
 
 # pyscylla — IAT Rebuilder (libscylla bindings)
@@ -10,8 +10,11 @@ of Windows PE binaries. The programmatic successor to the classic
 [Scylla](https://github.com/NtQuery/Scylla) GUI tool, designed for agent-driven
 memory-dump cleanup workflows.
 
-**Windows-only.** The vendored `libscylla-{x86,x64}.dll` is a native Windows DLL,
-and the live-process operations use `OpenProcess` / `ReadProcessMemory`.
+**Windows-only.** Rekit does not include, download, or build `libscylla`. Obtain an
+architecture-matched DLL from the external [Scylla project](https://github.com/NtQuery/Scylla),
+review its license, then set `PYSCYLLA_DLL` to its absolute path. A DLL named
+`libscylla-x64.dll`, `libscylla-x86.dll`, or `libscylla.dll` may alternatively be
+placed on `PATH`. Live-process operations use `OpenProcess` / `ReadProcessMemory`.
 
 ## ⚠️ The arch-match rule (read first)
 
@@ -40,7 +43,7 @@ rekit run pyscylla arch --pid 1234
 # list processes
 rekit run pyscylla procs
 
-# the headline pipeline: find IAT → dump → fix → rebuild
+# find IAT → dump → fix → rebuild
 rekit run pyscylla iat-find --pid 1234 --start 0x401000
 rekit run pyscylla fix --pid 1234 --addr 0x405000 --size 0x100 --dump game.dmp --out game_fixed.exe
 rekit run pyscylla rebuild --file game_fixed.exe
@@ -65,12 +68,13 @@ The agent workflow this is built for: another skill finds the OEP → pyscylla d
 
 ## MCP server (for direct LLM-agent integration)
 
-pyscylla also ships an MCP server (`runtime/pyscylla/mcp_server.py`) exposing
+pyscylla also ships an MCP server (`scripts/pyscylla/mcp_server.py`) exposing
 `server_info`, `list_processes`, `find_process`, `check_arch_match`,
 `dump_process`, `iat_search`, `iat_parse_live`, `iat_fix_auto`, `rebuild_file`,
 `tree_save`, `tree_load`, `reference_scan`. Run it directly:
 
 ```bash
+cd skills/pyscylla/scripts
 python -m pyscylla.mcp_server
 ```
 
@@ -83,10 +87,13 @@ python -m pyscylla.mcp_server
 5. **rebuild** ← this skill — realign + checksum.
 6. **pe-unmap** skill — final realignment if needed (virtual→raw).
 
-## Rebuild the native DLL
+## External dependency and licenses
 
-The vendored DLLs were built with `scripts/build-native.ps1` (needs VS 2022 v143 +
-diStorm + tinyxml; ATL/WTL not required for libscylla). Re-run it to refresh both
-x86 and x64 Release DLLs.
+The Rekit-maintained adapter and orchestration code in this skill is distributed
+under Rekit's root Apache-2.0 license. `Scylla` and `libscylla` are separate,
+third-party software licensed GPL-3.0-only by their upstream authors. They are not
+part of this repository.
 
-License: GPL-3.0-only (inherited from upstream Scylla). See `runtime/pyscylla-README.md`.
+Anyone choosing to obtain, build, use, modify, or redistribute that external software
+is responsible for reviewing and complying with its upstream license. Read
+[`references/python-api.md`](references/python-api.md) for setup and API details.

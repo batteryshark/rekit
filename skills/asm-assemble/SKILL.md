@@ -7,7 +7,7 @@ description: "CONSTRUCT: assemble asm text (a file or --code) into machine-code 
 
 **🔨 Construct tier — produces bytes, runs nothing.**
 
-## Why this exists
+## Role in the workflow
 
 The write-side partner of `emulate-code`. Where that skill *runs* bytes on a virtual CPU,
 this one *makes* them: assemble a snippet, then emulate it — a tight
@@ -25,11 +25,11 @@ for `x64 / x86 / arm64 / arm`, then extracts the raw `.text` bytes, emitted as:
 
 x86/x64 default to **Intel syntax** (`--att` for AT&T/GAS); ARM uses GAS syntax.
 
-## Why clang, not keystone
+## Toolchain choice
 
-`keystone-engine` ships **no arm64-macOS wheel** — the same native-packaging trap as
-py7zr. Rather than vendor a broken binding, this skill leans on the LLVM assembler
-`cc-build` already uses, so it works cross-arch anywhere clang does.
+The LLVM assembler supports the target architectures anywhere clang runs.
+`keystone-engine` has no arm64 macOS wheel, which would make that alternative
+platform-dependent.
 
 ## Prerequisites
 

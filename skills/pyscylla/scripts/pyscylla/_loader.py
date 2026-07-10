@@ -3,9 +3,8 @@
 Search order (first hit wins):
 
 1. ``PYSCYLLA_DLL`` environment variable — absolute path to a DLL.
-2. ``pyscylla/bin/libscylla-<arch>.dll`` — vendored build output.
-3. ``libscylla-<arch>.dll`` on ``PATH`` — system-wide install.
-4. ``libscylla.dll`` on ``PATH`` — generic fallback.
+2. ``libscylla-<arch>.dll`` on ``PATH`` — operator-managed install.
+3. ``libscylla.dll`` on ``PATH`` — generic fallback.
 
 The module exposes :func:`load_dll`, :func:`is_loaded`, and
 :func:`unload_dll`. ``load_dll`` is idempotent; subsequent calls
@@ -34,10 +33,6 @@ class LoadError(DllNotFoundError):
     """Raised when no libscylla DLL can be located or loaded."""
 
 
-def _package_bin_dir() -> Path:
-    return Path(__file__).resolve().parent.parent / "bin"
-
-
 def _candidate_paths() -> list[Path]:
     paths: list[Path] = []
 
@@ -45,12 +40,8 @@ def _candidate_paths() -> list[Path]:
     if env:
         paths.append(Path(env))
 
-    pkg_bin = _package_bin_dir()
     for name in _DLL_CANDIDATES:
-        paths.append(pkg_bin / name)
-
-    for name in _DLL_CANDIDATES:
-        # Finally rely on Windows DLL search by basename.
+        # Rely on the operator-managed Windows DLL search path by basename.
         paths.append(Path(name))
 
     return paths

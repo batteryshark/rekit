@@ -51,21 +51,21 @@ specific victims / dodge analysis):
 
 **The real signal is combination.** Any one atom can be innocent. Steganographic
 punctuation *next to* a timezone check *next to* an XOR decoder is the shape of
-covert, targeted, conditional behavior — so the scan reports a co-occurrence
-`assessment` across families, not just isolated hits.
+covert, targeted, conditional behavior. The scan reports isolated findings and a
+co-occurrence `assessment` across families.
 
 ## Usage
 
 ```bash
-rekit run js-covert-scan ./suspEcious.js
+rekit run js-covert-scan ./suspicious.js
 rekit run js-covert-scan ./some-package --format json
 ```
 
 Text mode prints ranked atoms with location, codepoint (for STEGO), and the line.
 JSON mode returns `{ok, filesScanned, findingCount, summary, families, assessment,
 findings:[{atom, family, method:"covert-scan", confidence, file, line, col,
-codepoint?, snippet, note}]}` — ready to fold into an MCD reading (the atoms are the
-real XFRM/LOAD/ENVI parallax atoms; `method="covert-scan"` lets the lens judge them).
+codepoint?, snippet, note}]}`. The XFRM/LOAD/ENVI atoms retain
+`method="covert-scan"` so downstream analysis can weigh their provenance.
 
 ## Prerequisites
 
@@ -77,4 +77,4 @@ Regex + Unicode heuristics, not a full parser: strong on the textual tactics
 (steganography especially), best-effort on logic-level obfuscation. Homoglyph
 *letters* and confusable punctuation can occur in legitimate natural-language
 strings, so they carry lower confidence — weigh them with the co-occurrence
-assessment. A future version can add AST-level precision for the OBF/EVADE atoms.
+assessment.

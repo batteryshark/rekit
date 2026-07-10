@@ -16,8 +16,8 @@ what it does: `_0x`-prefixed identifiers, big string arrays with a decoder funct
 single-line minified/webpacked bundle. Deobfuscation often reveals the behaviour the
 packing was hiding — a network beacon, a `child_process` spawn, a decode-and-eval.
 
-In an MCD/analysis pipeline: trigger this when the scanner flags obfuscation
-(`XFRM.*` atoms) on a JS artifact, then **re-scan the deobfuscated output**.
+When a scanner flags obfuscation (`XFRM.*` atoms), run this skill and then rescan the
+deobfuscated output.
 
 ## What it does
 
@@ -41,7 +41,7 @@ sandboxed: no network, writes only to the output dir, with a timeout.
 rekit run js-deobfuscate ./obfuscated.js ./out
 
 # or directly
-node skills/js-deobfuscate/runtime/run.mjs ./obfuscated.js ./out
+node skills/js-deobfuscate/scripts/run.mjs ./obfuscated.js ./out
 ```
 
 Writes `out/deobfuscated.js` (the single-file result) and, for detected bundles,
@@ -54,9 +54,9 @@ Writes `out/deobfuscated.js` (the single-file result) and, for detected bundles,
 
 ## Prerequisites
 
-- **node ≥ 18** — the only runtime requirement. webcrack (and its native
-  `isolated-vm` addon) is vendored under `runtime/node_modules`, so there is no
-  `npm install` or network at analysis time. `isolated-vm` ships prebuilt binaries
+- **node ≥ 18** — the only runtime requirement. Run
+  `rekit install js-deobfuscate` once to build `scripts/node_modules` from the lockfile;
+  the skill does not use npm or the network during analysis. `isolated-vm` ships prebuilt binaries
   for darwin-arm64/x64, linux-x64/arm64, and win32-x64; an LTS node is safest for
   ABI match (otherwise isolated-vm falls back to building from source, which needs a
   C++ toolchain).
@@ -66,6 +66,6 @@ If node is absent, the caller should either install it or record the artifact as
 
 ## Rebuilding the payload
 
-`runtime/node_modules` is populated from a pinned webcrack by `scripts/build.sh`
-(npm, at build time only). Re-run it to refresh and re-pin the version; commit the
-vendored `runtime/` so the skill stays offline.
+`scripts/node_modules` is populated from `package-lock.json` by `scripts/build.sh`
+(npm, at build time only). Set `WEBCRACK_VERSION` when intentionally updating the
+dependency; the script updates the lockfile and records the resolved version.

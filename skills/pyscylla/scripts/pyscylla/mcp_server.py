@@ -4,15 +4,14 @@ Run via stdio transport:
 
     python -m pyscylla.mcp_server
 
-Or register with Claude Desktop / opencode / Cursor by adding to the
-appropriate MCP config:
+Or register it with an MCP client:
 
     {
       "mcpServers": {
         "pyscylla": {
-          "command": "uv",
-          "args": ["run", "--directory", "<path-to-pyscylla>",
-                   "python", "-m", "pyscylla.mcp_server"]
+          "command": "python",
+          "args": ["-m", "pyscylla.mcp_server"],
+          "env": {"PYTHONPATH": "<path-to-rekit>/skills/pyscylla/scripts"}
         }
       }
     }
@@ -33,8 +32,7 @@ try:
     from mcp.server.fastmcp import FastMCP
 except ImportError as exc:  # pragma: no cover
     raise SystemExit(
-        "The 'mcp' package is required. Install with: "
-        "uv sync --extra debugger-bridge"
+        "The optional 'mcp' Python package is required by pyscylla.mcp_server."
     ) from exc
 
 import pyscylla as ps

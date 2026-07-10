@@ -1,6 +1,4 @@
-# Vendored per-skill deps are large (native prebuilds) and rebuildable from
-# scripts/build.sh. Ignored for the spike to keep the repo lean/reviewable; when a
-# skill graduates we decide commit-vs-git-lfs for its vendored deps.
+# Locally built skill runtimes are rebuildable from committed manifests and lockfiles.
 skills/*/scripts/node_modules/
 skills/*/scripts/site/
 

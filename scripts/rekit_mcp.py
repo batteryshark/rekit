@@ -11,7 +11,7 @@ not here.
 Pure stdlib (rekit's rule). JSON-RPC 2.0 over newline-delimited stdio.
 
 Execution model: a tool call is literally `rekit run <id> <args>` under the hood
-(the same path a shell user takes), so the prereq gate, the dynamic-tier
+(the same path a shell user takes), so availability checks, the dynamic-tier
 consent gate, and path resolution are IDENTICAL to the CLI — zero drift. This
 adapter is purely a transport + schema layer. We never import rekit.py; we talk
 to the `rekit` binary via subprocess, so the adapter is decoupled from the
@@ -186,7 +186,7 @@ def skill_to_tool(skill: dict, prefix: str, status: dict | None,
     # honest degradation: annotate availability (but still gate at call time)
     if status and not status.get("ready", True):
         missing = ", ".join(filter(None, status.get("missing") or []))
-        desc += f"\n\n[unavailable on this host — missing prereq(s): {missing}. " \
+        desc += f"\n\n[unavailable on this host — missing requirement(s): {missing}. " \
                 f"Install them, then restart this server.]"
     # dynamic skills are listed but consent-gated unless the server was started
     # with --allow-dynamic (mirrors `rekit run` refusing without the flag)

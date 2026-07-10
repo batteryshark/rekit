@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Vendor webcrack into scripts/node_modules (offline, self-contained, committed).
+# Build the local webcrack runtime under scripts/node_modules.
 #
 # Why node_modules and not a single .js: webcrack depends on isolated-vm, a NATIVE
 # addon (it runs the obfuscated string-array decoder inside a secure isolated VM).
@@ -9,19 +9,24 @@
 # tree is portable across the common platforms with no compiler. The user's RUN-time
 # prerequisite stays just `node`.
 #
-# Build-time only (needs npm + network). Re-run to refresh + re-pin. Commit scripts/.
+# Build-time only (needs npm + network). With no override, npm installs the exact
+# dependency graph in package-lock.json. Set WEBCRACK_VERSION to update and re-pin.
 #
 #   WEBCRACK_VERSION=2.16.0 scripts/build.sh
 set -euo pipefail
 
 SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 RT="$SKILL_DIR/scripts"
-WEBCRACK_VERSION="${WEBCRACK_VERSION:-latest}"
-
 cd "$RT"
-rm -rf node_modules package-lock.json
-echo "installing webcrack@${WEBCRACK_VERSION} (production deps only)..."
-npm install --omit=dev --no-audit --no-fund --loglevel=error "webcrack@${WEBCRACK_VERSION}"
+rm -rf node_modules
+if [ -n "${WEBCRACK_VERSION:-}" ]; then
+  echo "updating webcrack to ${WEBCRACK_VERSION} (production deps only)..."
+  npm install --save-exact --omit=dev --no-audit --no-fund --loglevel=error \
+    "webcrack@${WEBCRACK_VERSION}"
+else
+  echo "installing webcrack from package-lock.json (production deps only)..."
+  npm ci --omit=dev --no-audit --no-fund --loglevel=error
+fi
 
 RESOLVED="$(node -e "console.log(require('./node_modules/webcrack/package.json').version)")"
 echo "webcrack@${RESOLVED}" > "$RT/webcrack.version"

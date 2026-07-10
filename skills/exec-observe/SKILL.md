@@ -1,6 +1,6 @@
 ---
 name: exec-observe
-description: "DYNAMIC: run a target in a fresh working directory with a timeout and capture its behavior — exit code, stdout/stderr, wall-clock time, and files it creates. The seed of the dynamic tier (richer skills add syscall/network tracing). EXECUTES the target — run only where you don't mind the risk."
+description: "DYNAMIC: run a target in a fresh working directory with a timeout and capture its behavior — exit code, stdout/stderr, wall-clock time, and files it creates. EXECUTES the target; use the tracer skills for syscall, API, or network visibility. Run only where you accept the target's risk."
 ---
 
 # Execute & Observe (dynamic)
@@ -10,10 +10,8 @@ a disposable VM or a dedicated analysis box, or behind an isolation provider.
 
 ## When to use
 
-You want to *see what a sample does*, not just read it — the behavioral counterpart to
-the static skills. This is the seed primitive: run it, observe the surface (exit,
-output, files, timing). For deeper visibility (syscalls, network, hooks) use the
-tracer-backed dynamic skills as they land.
+Use this when you need the target's exit status, output, file effects, and timing. For
+deeper visibility, use `syscall-trace`, `net-capture`, or `frida-trace`.
 
 ## What it does
 

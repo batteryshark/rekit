@@ -95,14 +95,14 @@ def _cmp_version(found: tuple[int, ...], minimum: str) -> bool:
     return tuple((*found, *([0] * n))[:n]) >= tuple((*want, *([0] * n))[:n])
 
 
-def check_prereq(pre: dict) -> dict:
+def check_prereq(pre: dict, cwd: Path | None = None) -> dict:
     """Run a prerequisite's check command; return status dict (never raises)."""
     tool = pre.get("tool", "?")
     cmd = pre.get("check") or [tool, "--version"]
     result = {"tool": tool, "min_version": pre.get("min_version"),
               "install_hint": pre.get("install_hint")}
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=15, cwd=cwd)
     except FileNotFoundError:
         return {**result, "present": False, "reason": "not found on PATH"}
     except (subprocess.SubprocessError, OSError) as exc:
@@ -119,9 +119,42 @@ def check_prereq(pre: dict) -> dict:
 
 
 def doctor_skill(skill: dict) -> dict:
-    prereqs = [check_prereq(p) for p in skill.get("prerequisites", [])]
-    return {"id": skill.get("id"), "ready": all(p["present"] for p in prereqs),
-            "prerequisites": prereqs, "error": skill.get("_error")}
+    # Skill-local checks may refer to scripts relative to that skill directory.
+    # Global requirement checks continue to run from the caller's working directory.
+    prereqs = [check_prereq(p, cwd=skill.get("_dir"))
+               for p in skill.get("prerequisites", [])]
+    payload = (skill.get("payload") or {}).get("vendored")
+    if isinstance(payload, str) and payload:
+        declared_paths = []
+        for part in payload.split(" + "):
+            variants = [part.strip()]
+            match = re.search(r"\{([^{}]+)\}", part)
+            if match:
+                variants = [
+                    part[:match.start()] + choice + part[match.end():]
+                    for choice in match.group(1).split(",")
+                ]
+            declared_paths.extend(variant.rstrip("/") for variant in variants)
+
+        missing = [path for path in declared_paths if not (skill["_dir"] / path).exists()]
+        if missing:
+            build = skill["_dir"] / "scripts" / "build.sh"
+            hint = (
+                f"Run `bin/rekit install {skill['id']}`."
+                if build.is_file()
+                else "Restore the shipped payload from a clean checkout."
+            )
+            prereqs.append({
+                "tool": "local payload",
+                "min_version": None,
+                "install_hint": hint,
+                "version": None,
+                "present": False,
+                "reason": "missing " + ", ".join(missing),
+            })
+    error = skill.get("_error")
+    return {"id": skill.get("id"), "ready": all(p["present"] for p in prereqs) and not error,
+            "prerequisites": prereqs, "error": error}
 
 
 # --- rekit's own requirements (base/build/recommended) --------------------
@@ -206,6 +239,7 @@ def cmd_doctor(args) -> int:
     if args.id:
         skills = [_get(args.id)]
     reports = [doctor_skill(s) for s in skills]
+    all_ready = all(report["ready"] for report in reports)
 
     if args.json:
         # targeted: keep the existing single-element-list shape. full: wrap with the
@@ -216,9 +250,8 @@ def cmd_doctor(args) -> int:
             print(json.dumps(payload, indent=2))
         else:
             print(json.dumps(reports, indent=2))
-        return 0
+        return 0 if all_ready else 1
 
-    all_ready = True
     if tier_reports is not None:
         plat = _detect_platform()
         print(f"rekit requirements (this machine: {plat})\n")
@@ -250,13 +283,12 @@ def cmd_doctor(args) -> int:
             if p["present"]:
                 print(f"       + {p['tool']} {p.get('version') or ''}".rstrip())
             else:
-                all_ready = False
                 print(f"       - {p['tool']} MISSING ({p['reason']}) — {p['install_hint']}")
         if r.get("error"):
             print(f"       ! {r['error']}")
     ready = sum(1 for r in reports if r["ready"])
     print(f"\n{ready}/{len(reports)} skill(s) ready. "
-          f"{'All prerequisites satisfied.' if ready == len(reports) else 'Install the missing tools above to enable the rest.'}")
+          f"{'All checks passed.' if ready == len(reports) else 'Resolve the missing requirements above to enable the rest.'}")
     if show_base:
         orphans, missing = _registry_drift()
         if orphans or missing:
@@ -288,7 +320,7 @@ def cmd_run(args) -> int:
         for p in missing:
             print(f"rekit: '{s['id']}' unavailable — {p['tool']} missing "
                   f"({p['reason']}). {p['install_hint']}", file=sys.stderr)
-        print(json.dumps({"ok": False, "error": "prerequisites missing",
+        print(json.dumps({"ok": False, "error": "requirements missing",
                           "missing": [p["tool"] for p in missing]}))
         return 3
     # Dynamic-tier consent gate: a skill that EXECUTES the target requires explicit
@@ -338,6 +370,11 @@ def cmd_install(args) -> int:
         if not build.is_file():
             skipped += 1
             print(f"[--] {s.get('id')}: pure-stdlib / BYO-tool — nothing to vendor")
+            continue
+        if not args.id and (s.get("payload") or {}).get("build_default") is False:
+            skipped += 1
+            print(f"[--] {s.get('id')}: optional native build — run "
+                  f"`bin/rekit install {s.get('id')}` explicitly")
             continue
         print(f"[..] {s.get('id')}: building runtime…")
         proc = subprocess.run(["bash", str(build)])
@@ -581,7 +618,7 @@ def build_parser() -> argparse.ArgumentParser:
     srch.add_argument("--json", action="store_true")
     srch.set_defaults(func=cmd_search)
 
-    doc = sub.add_parser("doctor", help="check skill prerequisites")
+    doc = sub.add_parser("doctor", help="check skill prerequisites and local payloads")
     doc.add_argument("id", nargs="?")
     doc.add_argument("--json", action="store_true")
     doc.set_defaults(func=cmd_doctor)
