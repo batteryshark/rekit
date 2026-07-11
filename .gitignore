@@ -6,6 +6,10 @@ skills/*/scripts/site/
 skills/dex-dump/bin/dex-dumper
 skills/pyscylla/bin/
 
+# User-supplied API Monitor definition corpora (proprietary/local-license data).
+skills/frida-api-trace/assets/apimonitor/
+skills/frida-api-trace/assets/api-monitor-xml/
+
 # Python / OS / tooling
 __pycache__/
 *.py[cod]

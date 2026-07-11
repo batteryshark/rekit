@@ -1,0 +1,9 @@
+# Stateful emulation backends. Qiling brings Unicorn and Capstone transitively; pin
+# them explicitly because the runner also uses their public APIs directly.
+unicorn==2.1.4
+capstone==5.0.6
+qiling==1.4.6
+# Qiling's Keystone dependency still imports distutils.sysconfig. Python 3.12+
+# removed distutils from the standard library; Setuptools provides the shim. The
+# build script separately compiles Keystone's missing native library on macOS arm64.
+setuptools==80.9.0
