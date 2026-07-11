@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """rekit mcp — expose the rekit skill catalog as a single MCP server.
 
-A read-only, **stateless export adapter**: every rekit skill becomes one MCP
+A read-only, **transport-stateless export adapter**: every rekit skill becomes one MCP
 tool (JSON Schema derived from `entry.args`; safety + consent carried through).
 This is rekit speaking MCP as an *output* surface only — it is NOT an MCP
-*client*, and it does not host third-party MCP servers. The stateful/session
-axis (IDA, debuggers, browser automation) is wired by the calling harness,
-not here.
+*client*, and it does not host third-party MCP servers. A skill may persist state in
+an explicit caller-owned path (for example `emulation-session`); the adapter itself
+does not retain hidden process state between calls.
 
 Pure stdlib (rekit's rule). JSON-RPC 2.0 over newline-delimited stdio.
 
