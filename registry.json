@@ -868,6 +868,263 @@
       "note": "Vendored via `uv pip install --target` (native — platform-specific like the isolated-vm addon; ships wheels for common platforms). The dynamic tier's contained/emulation member: complements exec-observe (native run) and the tracer skills. Feed it shellcode carved by bin-triage or a function's bytes."
     }
   },
+  "emulation-session": {
+    "name": "Stateful Emulation Session",
+    "description": "Create and operate persistent Unicorn or Qiling emulation sessions across separate agent, CLI, or MCP calls. Use for iterative reverse engineering that requires stepping, register or memory changes, address/syscall/API hooks, traces, branch snapshots, or repeated inspection without restarting the emulated target. Contained execution only; never runs the target natively.",
+    "version": "0.1.0",
+    "capabilities": [
+      "emulate",
+      "emulate-code",
+      "emulate-binary",
+      "stateful-emulation",
+      "debug-emulated-target",
+      "behavioral-trace"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+. Build the local runtime with `bin/rekit install emulation-session`."
+      },
+      {
+        "tool": "emulation runtime",
+        "check": [
+          "python3",
+          "scripts/check-runtime.py"
+        ],
+        "install_hint": "Run `bin/rekit install emulation-session` with the same python3 Rekit uses. On macOS ARM64, git, cmake, and a C/C++ toolchain are also required."
+      }
+    ],
+    "safety": {
+      "executes_input": "sandboxed",
+      "network": "emulated",
+      "tier": 2,
+      "notes": "CONTAINED dynamic analysis. Unicorn executes raw bytes in a memory-only virtual CPU. Qiling executes a binary against an emulated OS/rootfs. No native target execution. Calls are timeout/instruction bounded and serialize access to their session directory. Qiling can support passthrough when explicitly customized, but this runner does not enable it."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/session.py"
+      ],
+      "args": [
+        {
+          "name": "session",
+          "type": "path",
+          "required": true,
+          "desc": "caller-owned directory containing durable emulation state"
+        },
+        {
+          "name": "action",
+          "type": "enum",
+          "required": true,
+          "desc": "stateful operation to perform",
+          "choices": [
+            "create",
+            "info",
+            "run",
+            "step",
+            "read-memory",
+            "write-memory",
+            "map-memory",
+            "search-memory",
+            "read-registers",
+            "write-register",
+            "add-hook",
+            "list-hooks",
+            "remove-hook",
+            "save-snapshot",
+            "restore-snapshot",
+            "list-snapshots",
+            "set-trace",
+            "get-trace",
+            "clear-trace",
+            "close",
+            "reopen"
+          ]
+        },
+        {
+          "name": "--engine",
+          "type": "enum",
+          "required": false,
+          "desc": "backend used by create",
+          "choices": [
+            "unicorn",
+            "qiling"
+          ]
+        },
+        {
+          "name": "--arch",
+          "type": "enum",
+          "required": false,
+          "desc": "Unicorn architecture; Qiling normally auto-detects",
+          "choices": [
+            "x64",
+            "x86",
+            "arm",
+            "thumb",
+            "arm64",
+            "mips",
+            "mipsel"
+          ]
+        },
+        {
+          "name": "--input",
+          "type": "path",
+          "required": false,
+          "desc": "raw code blob for Unicorn or full binary for Qiling"
+        },
+        {
+          "name": "--rootfs",
+          "type": "path",
+          "required": false,
+          "desc": "matching BYO rootfs for a Qiling create"
+        },
+        {
+          "name": "--argv",
+          "type": "str",
+          "required": false,
+          "desc": "JSON string array of emulated program arguments"
+        },
+        {
+          "name": "--address",
+          "type": "str",
+          "required": false,
+          "desc": "address for execution, memory, mapping, or address-hook actions"
+        },
+        {
+          "name": "--end",
+          "type": "str",
+          "required": false,
+          "desc": "optional execution stop address"
+        },
+        {
+          "name": "--size",
+          "type": "int",
+          "required": false,
+          "desc": "memory read or mapping size"
+        },
+        {
+          "name": "--data",
+          "type": "str",
+          "required": false,
+          "desc": "hexadecimal bytes for memory write or search"
+        },
+        {
+          "name": "--name",
+          "type": "str",
+          "required": false,
+          "desc": "register name, hook id, syscall/API name, or comma-separated register list"
+        },
+        {
+          "name": "--value",
+          "type": "str",
+          "required": false,
+          "desc": "register value; unprefixed integers are decimal and 0x values are hexadecimal"
+        },
+        {
+          "name": "--count",
+          "type": "int",
+          "required": false,
+          "desc": "instruction count or trace tail length"
+        },
+        {
+          "name": "--timeout",
+          "type": "int",
+          "required": false,
+          "desc": "execution timeout in seconds, capped at 300"
+        },
+        {
+          "name": "--perms",
+          "type": "str",
+          "required": false,
+          "desc": "memory permissions such as rw, rx, rwx, or numeric 1..7"
+        },
+        {
+          "name": "--label",
+          "type": "str",
+          "required": false,
+          "desc": "human label for a mapping, hook, or snapshot"
+        },
+        {
+          "name": "--snapshot",
+          "type": "str",
+          "required": false,
+          "desc": "snapshot id or unique label to restore"
+        },
+        {
+          "name": "--hook-type",
+          "type": "enum",
+          "required": false,
+          "desc": "hook kind",
+          "choices": [
+            "address",
+            "syscall",
+            "api"
+          ]
+        },
+        {
+          "name": "--stop",
+          "type": "flag",
+          "required": false,
+          "desc": "make an address hook stop execution like a breakpoint"
+        },
+        {
+          "name": "--trace",
+          "type": "flag",
+          "required": false,
+          "desc": "enable instruction tracing when creating a session"
+        },
+        {
+          "name": "--enabled",
+          "type": "enum",
+          "required": false,
+          "desc": "new set-trace state",
+          "choices": [
+            "true",
+            "false"
+          ]
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "session": "string",
+          "engine": "string?",
+          "stopReason": "string?",
+          "pc": "string?",
+          "registers": "object?",
+          "trace": "array?",
+          "snapshots": "array?",
+          "error": "string?"
+        }
+      }
+    },
+    "payload": {
+      "tool": "unicorn + capstone + qiling",
+      "source": "https://www.unicorn-engine.org/ and https://qiling.io/",
+      "vendored": "scripts/site",
+      "runner": "scripts/session.py",
+      "build": "scripts/build.sh",
+      "build_default": false,
+      "note": "Original file-backed session implementation. The session directory is the persistence boundary: Unicorn regions/registers are serialized explicitly, while Qiling uses its documented snapshot/restore API. Qiling rootfs data remains BYO. Build explicitly because the combined runtime is large and platform-specific."
+    }
+  },
   "exec-observe": {
     "name": "Execute & Observe (dynamic)",
     "description": "DYNAMIC: run a target in a fresh working directory with a timeout and capture its behavior — exit code, stdout/stderr, wall-clock time, and files it creates. EXECUTES the target; use the tracer skills for syscall, API, or network visibility. Run only where you accept the target's risk.",
@@ -944,6 +1201,280 @@
       "runner": "scripts/run.py",
       "pure_stdlib": true,
       "note": "The dispatcher requires --allow-dynamic and the runner verifies consent again. Consent is not isolation: use a disposable VM, dedicated analysis host, or another boundary appropriate for the target."
+    }
+  },
+  "frida-api-trace": {
+    "name": "Signature-Aware Frida API Trace",
+    "description": "DYNAMIC: spawn an authorized target under Frida and trace selected exported APIs using signatures parsed from a user-supplied API Monitor XML tree. Reports typed argument names, safe string previews, return values, hook coverage, and bounded events. The proprietary definition corpus is never shipped and stays gitignored. EXECUTES the target; consent-gated. BYO frida-tools and legally obtained definitions.",
+    "version": "0.1.0",
+    "capabilities": [
+      "instrument-target",
+      "api-trace",
+      "decode-api-arguments",
+      "dynamic-analysis"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ for the runner."
+      },
+      {
+        "tool": "frida Python bindings",
+        "check": [
+          "python3",
+          "-c",
+          "import frida; print(frida.__version__)"
+        ],
+        "install_hint": "pip install frida-tools (includes the Python frida bindings; use a matching frida-server for remote targets)."
+      }
+    ],
+    "safety": {
+      "executes_input": "full",
+      "network": "target-controlled",
+      "tier": 3,
+      "notes": "DYNAMIC — Frida spawns and runs the target natively. Consent-gated and timeout-bounded; the target may perform arbitrary host/network activity. Use an authorized disposable analysis environment. API Monitor definitions are local user-supplied data and are not redistributed."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "target",
+          "type": "file",
+          "required": true,
+          "desc": "executable to spawn and trace"
+        },
+        {
+          "name": "--definitions",
+          "type": "path",
+          "required": false,
+          "desc": "API Monitor XML file/tree (default: ignored assets/apimonitor)"
+        },
+        {
+          "name": "--apis",
+          "type": "str",
+          "required": false,
+          "desc": "comma-separated API names/globs; module!api is supported"
+        },
+        {
+          "name": "--modules",
+          "type": "str",
+          "required": false,
+          "desc": "optional comma-separated module globs"
+        },
+        {
+          "name": "--target-args",
+          "type": "str",
+          "required": false,
+          "desc": "command-line arguments passed to the spawned target"
+        },
+        {
+          "name": "--timeout",
+          "type": "int",
+          "required": false,
+          "desc": "seconds before the spawned target is stopped (default 20)"
+        },
+        {
+          "name": "--max-hooks",
+          "type": "int",
+          "required": false,
+          "desc": "cap wildcard-expanded signatures (default 64)"
+        },
+        {
+          "name": "--max-events",
+          "type": "int",
+          "required": false,
+          "desc": "cap retained call events (default 1000)"
+        },
+        {
+          "name": "--max-string",
+          "type": "int",
+          "required": false,
+          "desc": "maximum characters read from recognized string arguments (default 256)"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "selected": "array",
+          "hookCoverage": "object",
+          "eventCount": "int",
+          "eventsReturned": "int",
+          "eventsTruncated": "bool",
+          "events": "array",
+          "parseWarnings": "array",
+          "runtimeErrors": "array"
+        }
+      }
+    },
+    "payload": {
+      "tool": "frida",
+      "source": "https://frida.re",
+      "vendored": null,
+      "runner": "scripts/run.py",
+      "note": "Rekit ships only the original parser/normalizer and generated Frida instrumentation. The API Monitor XML corpus is BYO, license-controlled user data stored in the gitignored assets/apimonitor directory or supplied with --definitions."
+    }
+  },
+  "frida-android-instrument": {
+    "name": "Frida Android Instrumentation",
+    "description": "DYNAMIC: inspect an authorized Android app's Java runtime through Frida: list loaded classes, enumerate method signatures, or install observation-only hooks that report arguments and return values without intentionally changing them. Use for runtime discovery when static APK/DEX analysis is insufficient. Attaches to or spawns the app on a BYO Frida-capable USB device; executes the target and is consent-gated.",
+    "version": "0.1.0",
+    "capabilities": [
+      "instrument-android",
+      "enumerate-java-classes",
+      "enumerate-java-methods",
+      "trace-java-method",
+      "dynamic-analysis"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ for the runner."
+      },
+      {
+        "tool": "frida CLI",
+        "check": [
+          "frida",
+          "--version"
+        ],
+        "install_hint": "pip install frida-tools, then provide a compatible frida-server or Gadget endpoint on the authorized Android device."
+      }
+    ],
+    "safety": {
+      "executes_input": "full",
+      "network": "target-controlled",
+      "tier": 3,
+      "notes": "DYNAMIC — attaches to or spawns the Android app on a connected device. Consent-gated and timeout-bounded. Built-in hooks observe and call the original implementation; they do not intentionally alter arguments or returns. Instrumentation may still perturb or crash the app."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "package",
+          "type": "str",
+          "required": true,
+          "desc": "Android application identifier"
+        },
+        {
+          "name": "--mode",
+          "type": "enum",
+          "required": false,
+          "desc": "classes | methods | hook (default classes)",
+          "choices": [
+            "classes",
+            "methods",
+            "hook"
+          ]
+        },
+        {
+          "name": "--class-name",
+          "type": "str",
+          "required": false,
+          "desc": "fully-qualified Java class for methods/hook mode"
+        },
+        {
+          "name": "--method",
+          "type": "str",
+          "required": false,
+          "desc": "Java method name for hook mode"
+        },
+        {
+          "name": "--match",
+          "type": "str",
+          "required": false,
+          "desc": "class substring or method glob, depending on mode"
+        },
+        {
+          "name": "--spawn",
+          "type": "flag",
+          "required": false,
+          "desc": "spawn the package instead of attaching to a running app"
+        },
+        {
+          "name": "--device-id",
+          "type": "str",
+          "required": false,
+          "desc": "Frida device ID (default: USB device)"
+        },
+        {
+          "name": "--timeout",
+          "type": "int",
+          "required": false,
+          "desc": "bounded observation window in seconds (default 15)"
+        },
+        {
+          "name": "--max-events",
+          "type": "int",
+          "required": false,
+          "desc": "maximum retained classes, methods, hooks, and calls (default 200)"
+        },
+        {
+          "name": "--max-value",
+          "type": "int",
+          "required": false,
+          "desc": "maximum characters retained for an argument or return preview (default 256)"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "package": "string",
+          "mode": "string",
+          "spawned": "bool",
+          "device": "string",
+          "eventCount": "int",
+          "eventsTruncated": "bool",
+          "events": "array",
+          "runtimeErrors": "array",
+          "fridaExitCode": "int|null"
+        }
+      }
+    },
+    "payload": {
+      "tool": "frida",
+      "source": "https://frida.re",
+      "vendored": null,
+      "runner": "scripts/run.py",
+      "note": "Rekit generates an original bounded Java agent and loads it through the BYO Frida CLI. No course scripts, APKs, Frida binaries, server, Gadget, or third-party payloads are redistributed."
     }
   },
   "frida-trace": {
@@ -1417,6 +1948,68 @@
       "runner": "scripts/extract.py",
       "pure_stdlib": true,
       "note": "Zero-dependency. Domains are filtered against a filename-extension blocklist and IPs against benign/octet checks to cut noise; both raw `value` and `defanged` are returned. A reporting utility over any file or an extracted/decompiled tree."
+    }
+  },
+  "intellidiff": {
+    "name": "Intelligent File and Folder Diff",
+    "description": "Compare files exactly or with deliberate text normalization, compare directory trees, find duplicate files, calculate SHA-256 and CRC32 identities, and read bounded line ranges. Use for change analysis, duplicate/orphan discovery, checksum verification, or focused source inspection. Pure-stdlib and read-only; never executes input or follows symlinks.",
+    "version": "0.1.0",
+    "capabilities": [
+      "compare-files",
+      "compare-folders",
+      "diff-text",
+      "find-duplicates",
+      "hash-file",
+      "read-lines"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": ["python3", "--version"],
+        "install_hint": "Install Python 3.8+; the runner uses only the standard library."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 0,
+      "notes": "Read-only file and directory inspection. Streams hashes, decodes text only in smart/lines modes, writes nothing, and never follows symlinks or executes input."
+    },
+    "entry": {
+      "command": ["python3", "scripts/run.py"],
+      "args": [
+        {"name": "op", "type": "enum", "required": true, "desc": "operation to run", "choices": ["compare", "folder-compare", "duplicates", "hash", "lines"]},
+        {"name": "target", "type": "path", "required": true, "desc": "first file or directory"},
+        {"name": "other", "type": "path", "required": false, "desc": "second file or directory (compare operations)"},
+        {"name": "--mode", "type": "enum", "required": false, "desc": "exact or normalized-text comparison", "choices": ["exact", "smart"]},
+        {"name": "--ignore-blank", "type": "flag", "required": false, "desc": "smart mode: ignore blank lines"},
+        {"name": "--ignore-newlines", "type": "flag", "required": false, "desc": "smart mode: normalize line endings"},
+        {"name": "--ignore-whitespace", "type": "flag", "required": false, "desc": "smart mode: ignore leading and trailing whitespace"},
+        {"name": "--ignore-case", "type": "flag", "required": false, "desc": "smart mode: compare case-insensitively"},
+        {"name": "--normalize-tabs", "type": "flag", "required": false, "desc": "smart mode: expand tabs"},
+        {"name": "--unicode-normalize", "type": "flag", "required": false, "desc": "smart mode: apply Unicode NFKC normalization"},
+        {"name": "--binary", "type": "flag", "required": false, "desc": "include binary files in folder comparison"},
+        {"name": "--include-hidden", "type": "flag", "required": false, "desc": "include hidden paths in tree operations"},
+        {"name": "--depth", "type": "int", "required": false, "desc": "maximum tree recursion depth (default 10)"},
+        {"name": "--start", "type": "int", "required": false, "desc": "first selected line, 1-based"},
+        {"name": "--end", "type": "int", "required": false, "desc": "last selected line, inclusive"},
+        {"name": "--context", "type": "int", "required": false, "desc": "context lines before and after selection"},
+        {"name": "--max-diff-lines", "type": "int", "required": false, "desc": "maximum unified diff lines (default 2000)"},
+        {"name": "--format", "type": "enum", "required": false, "desc": "text or json (default json)", "choices": ["text", "json"]}
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {"ok": "bool", "op": "string", "error": "string?"}
+      }
+    },
+    "payload": {
+      "tool": "(builtin)",
+      "vendored": null,
+      "runner": "scripts/run.py",
+      "pure_stdlib": true,
+      "note": "Adapted from the incoming IntelliDiff skill into one Rekit-contract entry point with structured output and SHA-256 identity checks."
     }
   },
   "ios-dump": {
@@ -1977,6 +2570,111 @@
       "note": "Installed via `uv pip install --target scripts/site` (pure Python, portable). Completes the PE/ELF/Mach-O triage trio and emits structured BINARY.* atoms."
     }
   },
+  "minimal-executable": {
+    "name": "Minimal Executable Builder",
+    "description": "CONSTRUCT: generate a deterministic, conservative no-runtime executable that exits with a chosen status: Linux ELF (x86_64/i386), Windows PE (PE32+/PE32), or a static macOS arm64 Mach-O research artifact. Emits bytes, verifies its own header invariants, measures/hash-inspects the result, and labels proof honestly. Builds only; never runs the artifact.",
+    "version": "0.1.0",
+    "kind": "construct",
+    "capabilities": [
+      "construct-executable",
+      "construct-elf",
+      "construct-pe",
+      "construct-macho"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ — the builder is pure stdlib."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 0,
+      "notes": "CONSTRUCT skill — emits a fixed no-runtime exit stub inside conservative executable headers and validates the result; never runs it. Execute separately only in an environment appropriate for the artifact."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "format",
+          "type": "enum",
+          "required": true,
+          "desc": "elf | pe | macho",
+          "choices": [
+            "elf",
+            "pe",
+            "macho"
+          ]
+        },
+        {
+          "name": "--arch",
+          "type": "enum",
+          "required": false,
+          "desc": "x86_64 | i386 | arm64 (default x86_64; macho defaults arm64)",
+          "choices": [
+            "x86_64",
+            "i386",
+            "arm64"
+          ]
+        },
+        {
+          "name": "--exit-code",
+          "type": "int",
+          "required": false,
+          "desc": "exit status embedded in the artifact, 0..255 (default 0)"
+        },
+        {
+          "name": "--out",
+          "type": "path",
+          "required": false,
+          "desc": "output path (default: tiny-<format>-<arch>)"
+        },
+        {
+          "name": "--report",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "format": "string",
+          "arch": "string",
+          "artifactKind": "string",
+          "out": "string",
+          "size": "int",
+          "sha256": "string",
+          "proof": "array",
+          "validation": "object",
+          "inspection": "object",
+          "caveats": "array"
+        }
+      }
+    },
+    "payload": {
+      "tool": "(builtin)",
+      "vendored": null,
+      "runner": "scripts/run.py",
+      "pure_stdlib": true,
+      "note": "One operational builder replaces the former format-specific tutorial skills. It emits conservative parser-clean shapes and keeps structural/tool-readable/loader/native proof claims separate. The static arm64 Mach-O is explicitly a research artifact, not a modern runnable claim."
+    }
+  },
   "native-disassemble": {
     "name": "Native Disassembler",
     "description": "Disassemble PE, ELF, or Mach-O binaries to function-oriented assembly without executing them. Automatically uses llvm-objdump/objdump, then falls back to Rizin/radare2 analysis for stripped binaries. Writes the complete listing to disassembly.txt and reports instruction/function-line counts.",
@@ -2506,6 +3204,103 @@
       "build": "scripts/build.ps1",
       "license": "BSD-2-Clause (pe_unmapper + libpeconv)",
       "note": "Vendored Windows x64 release build (libpeconv-backed). The third step of dump recovery: OEP-find → dump → [this] realign → IAT-rebuild. Pair with pyscylla for the IAT rebuild step. Rebuild from source via scripts/build.ps1 (needs VS 2022 + CMake)."
+    }
+  },
+  "protection-survey": {
+    "name": "Source Protection Survey",
+    "description": "Statically survey source trees for anti-analysis and protection patterns across C/C++, Objective-C, assembly, Rust, Go, Python, JavaScript/TypeScript, Java/Kotlin, C#, and Swift. Finds anti-debug/VM checks, runtime API resolution, executable-memory changes, early execution, custom sections, inline assembly, opaque/flattened control flow, stack strings, obfuscating build flags, injection primitives, and self-integrity checks. Emits evidence with confidence; read-only and never executes source.",
+    "version": "0.1.0",
+    "capabilities": [
+      "survey-source-protections",
+      "detect-anti-analysis",
+      "detect-obfuscation-patterns",
+      "emit-atoms"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ — the scanner is pure stdlib."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 0,
+      "notes": "Read-only regex and co-occurrence scan over source text. It never imports, compiles, builds, or executes the input. Findings describe mechanisms, not intent."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "input",
+          "type": "path",
+          "required": true,
+          "desc": "source file or project tree"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default json)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        },
+        {
+          "name": "--max-files",
+          "type": "int",
+          "required": false,
+          "desc": "maximum candidate files to examine (default 10000)"
+        },
+        {
+          "name": "--max-file-bytes",
+          "type": "int",
+          "required": false,
+          "desc": "skip source files larger than this size (default 2097152)"
+        },
+        {
+          "name": "--max-findings",
+          "type": "int",
+          "required": false,
+          "desc": "maximum evidence records retained; counts remain complete (default 500)"
+        },
+        {
+          "name": "--include-hidden",
+          "type": "flag",
+          "required": false,
+          "desc": "include hidden files and directories except known generated/vendor trees"
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "filesScanned": "int",
+          "skipped": "object",
+          "findingCount": "int",
+          "categoryCounts": "object",
+          "families": "array",
+          "assessment": "string",
+          "findings": "array"
+        }
+      }
+    },
+    "payload": {
+      "tool": "(builtin)",
+      "vendored": null,
+      "runner": "scripts/run.py",
+      "pure_stdlib": true,
+      "note": "Original explainable scanner with broad language/build-file coverage. It replaces the old unlicensed narrow survey script and reports review evidence rather than intent judgments."
     }
   },
   "py-covert-scan": {
