@@ -151,6 +151,13 @@ lockfiles are committed. Native executables live in `bin/`; data and rules live 
 `assets/`. Commit shipped payloads with their applicable licenses. Run
 `bin/rekit install [<id>]` after cloning and whenever a runtime manifest changes.
 
+User-supplied or separately licensed corpora may use a documented skill-local
+subdirectory under `assets/` only when that exact path is ignored by Git. Such data is
+an operator input, not a vendored payload: keep `payload.vendored` null, accept an
+explicit path override, and fail with a clear BYO/license hint when it is absent. This
+keeps a local analysis workstation useful without silently changing the public
+repository's redistribution boundary.
+
 ## Adding a skill
 
 1. Add a `"<id>": { … }` entry to `registry.json` (name, description, capabilities,

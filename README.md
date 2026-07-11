@@ -83,6 +83,7 @@ Grouped by what they do; `rekit list` and `rekit caps` are the authoritative cat
 | `secrets-scan` | leaked API keys / tokens / private keys (redacted) | python3 |
 | `yara-scan` | YARA signature scan (+ starter rule pack) | yara (BYO) |
 | `ioc-extract` | defanged IOCs (urls/ips/domains/hashes/CVEs/…) from any file | python3 |
+| `protection-survey` | anti-debug/VM, runtime-resolution, executable-memory, early-init, custom-section, inline-asm, flattening, stack-string, and obfuscating-build patterns across native and managed source | python3 |
 
 **Binary triage** (emit `BINARY.*`/`DOTNET.*` atoms)
 
@@ -131,6 +132,7 @@ Grouped by what they do; `rekit list` and `rekit caps` are the authoritative cat
 | Skill | What | Prereq |
 |---|---|---|
 | `dex-dump` | dump decrypted DEX from a running Android app | adb (BYO device) |
+| `frida-android-instrument` ⚡ | enumerate Java classes/methods or observe method calls in an Android app | frida-tools + BYO device |
 | `ios-dump` | dump a decrypted iOS app binary (FairPlay) from a jailbroken device | frida (BYO device) |
 
 **Dynamic** ⚡ (run the target to observe behavior; consent-gated via `rekit run --allow-dynamic`)
@@ -139,10 +141,12 @@ Grouped by what they do; `rekit list` and `rekit caps` are the authoritative cat
 |---|---|---|
 | `exec-observe` | run target, capture exit/stdout/stderr/files-created/timing | python3 |
 | `emulate-code` | contained: run raw shellcode/blob on a virtual CPU (no OS) | unicorn · python3 |
+| `emulation-session` | contained: persistent stepping, registers, memory, hooks, traces, and snapshots across calls | unicorn/qiling · python3 |
 | `qiling-emulate` | contained: emulate a FULL binary (PE/ELF/Mach-O) w/ emulated OS syscalls | qiling + BYO rootfs · python3 |
 | `syscall-trace` ⚡ | kernel-syscall trace (strace/dtruss) → histogram + files/net/exec | strace/dtruss (BYO) · python3 |
 | `net-capture` ⚡ | run target + sniff wire (tcpdump) → talkers/DNS + pcap | tcpdump (BYO, root) · python3 |
 | `frida-trace` ⚡ | Frida-hook network/exec/file/crypto API calls | frida-trace (BYO) · python3 |
+| `frida-api-trace` ⚡ | signature-aware Frida tracing from a local, gitignored API Monitor XML tree | frida-tools + BYO definitions · python3 |
 
 **Construct** 🔨 (produce an artifact; never run it)
 
@@ -151,6 +155,7 @@ Grouped by what they do; `rekit list` and `rekit caps` are the authoritative cat
 | `cc-build` | compile C/C++/ObjC → native (exe/.o/.s/IR), cross-compile | clang/cc/gcc (BYO) · python3 |
 | `asm-assemble` | assemble asm → bytes (hex/C-array/raw) — x64/x86/arm64/arm | clang/LLVM (BYO) · python3 |
 | `shellcode-stub` | wrap raw shellcode → runnable native PoC (`--os posix` mmap/mprotect \| `--os windows` VirtualAlloc+ExitProcess) | clang (BYO) · python3 |
+| `minimal-executable` | emit deterministic no-runtime ELF/PE or static arm64 Mach-O research artifacts with structural proof | python3 |
 
 **Workflow** (not RE — a harness convenience)
 
@@ -164,6 +169,9 @@ Grouped by what they do; `rekit list` and `rekit caps` are the authoritative cat
 - **Python:** `pyinstaller-extract` → `pyc-decompile` → `py-covert-scan`
 - **Binary:** `bin-triage` → `pe`/`elf`/`macho`/`dotnet-analyze` → the matching decompiler
 - **Construct → analyze:** `asm-assemble` → `shellcode-stub` → `exec-observe` (native) or `qiling-emulate` (cross-arch/cross-OS); `cc-build` → any decompiler (or `--emit asm|ir`)
+- **Protection research:** `protection-survey` → inspect flagged sites → build a controlled fixture with `cc-build` or `minimal-executable` → analyze the artifact
+- **Windows API behavior:** `frida-trace` for quick globs; `frida-api-trace` when local signatures and typed arguments matter
+- **Android runtime discovery:** `jvm-decompile` → `frida-android-instrument` for loaded classes/method calls → `dex-dump` when runtime-loaded DEX is absent on disk
 
 ## Requirements and runtimes
 
