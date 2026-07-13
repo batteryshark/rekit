@@ -20,6 +20,7 @@ See ../SKILL-CONTRACT.md for the manifest shape.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import platform
@@ -34,6 +35,95 @@ REGISTRY_FILE = ROOT / "registry.json"
 REQUIREMENTS_FILE = ROOT / "requirements.json"
 _VER_RE = re.compile(r"(\d+(?:\.\d+)*)")
 TIERS = ("base", "build", "recommended")
+AUTHORITY_VERSION = 1
+ACTION_AUTHORITIES = (
+    "read_local_target", "execute_untrusted", "modify_target", "network_access",
+    "register_account", "enroll_challenge", "create_credential", "submit_challenge",
+    "persistence", "destructive", "third_party_message", "expand_scope",
+)
+HIGH_IMPACT_AUTHORITIES = frozenset(ACTION_AUTHORITIES[1:])
+EXTERNAL_NETWORK_MODES = frozenset({"optional", "target-controlled", "capture", "device-ssh"})
+
+
+def effective_authority(skill: dict) -> tuple[dict | None, str | None]:
+    """Validate and normalize semantic authority independently from safety/consent.
+
+    Legacy compatibility is deliberately narrow: only an explicit static, offline
+    manifest receives read-only target authority. Anything riskier is unavailable
+    until it is migrated and reviewed.
+    """
+    raw = skill.get("authority")
+    safety = skill.get("safety") or {}
+    executes = safety.get("executes_input")
+    network = safety.get("network")
+    if raw is None:
+        if executes == "no" and network == "none":
+            return {"version": AUTHORITY_VERSION, "actions": ["read_local_target"],
+                    "credential_use": False, "legacy": True}, None
+        return None, "risky legacy manifest requires an explicit authority declaration"
+    if not isinstance(raw, dict) or set(raw) != {"version", "actions", "credential_use"}:
+        return None, "authority must contain exactly version, actions, and credential_use"
+    if raw.get("version") != AUTHORITY_VERSION:
+        return None, f"unsupported authority version {raw.get('version')!r}"
+    actions = raw.get("actions")
+    credential_use = raw.get("credential_use")
+    if not isinstance(actions, list) or not actions or any(not isinstance(a, str) for a in actions):
+        return None, "authority.actions must be a non-empty list of exact action names"
+    if isinstance(credential_use, bool) is False:
+        return None, "authority.credential_use must be boolean"
+    unknown = sorted(set(actions) - set(ACTION_AUTHORITIES))
+    if unknown:
+        return None, f"unknown action authorities: {', '.join(unknown)}"
+    if len(actions) != len(set(actions)):
+        return None, "authority.actions must not contain duplicates"
+    normalized = [action for action in ACTION_AUTHORITIES if action in actions]
+    if actions != normalized:
+        return None, "authority.actions must use canonical least-to-most-impact order"
+    if executes in {"sandboxed", "full"} and "execute_untrusted" not in actions:
+        return None, "input execution requires execute_untrusted authority"
+    if executes == "no" and "execute_untrusted" in actions:
+        return None, "execute_untrusted contradicts safety.executes_input=no"
+    if network in EXTERNAL_NETWORK_MODES and "network_access" not in actions:
+        return None, f"external safety.network={network!r} requires network_access authority"
+    if network in {None, "none", "emulated"} and "network_access" in actions:
+        return None, f"network_access contradicts safety.network={network!r}"
+    return {"version": AUTHORITY_VERSION, "actions": normalized,
+            "credential_use": credential_use, "legacy": False}, None
+
+
+def effective_manifest(skill: dict) -> tuple[dict | None, str | None]:
+    authority, error = effective_authority(skill)
+    if error:
+        return None, error
+    safety = skill.get("safety") or {}
+    value = {
+        "schemaVersion": AUTHORITY_VERSION,
+        "toolId": skill.get("id"),
+        "toolVersion": skill.get("version"),
+        "safety": {
+            "tier": safety.get("tier"),
+            "executesInput": safety.get("executes_input"),
+            "network": safety.get("network"),
+        },
+        "authority": {
+            "version": authority["version"], "actions": authority["actions"],
+            "credentialUse": authority["credential_use"], "legacy": authority["legacy"],
+        },
+    }
+    raw = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    value["digest"] = hashlib.sha256(raw.encode("utf-8")).hexdigest()
+    return value, None
+
+
+def public_skill(skill: dict) -> dict:
+    """Safe federated projection: no catalog source path or credential values."""
+    value = {key: item for key, item in skill.items()
+             if not key.startswith("_") and key != "path"}
+    effective, error = effective_manifest(skill)
+    value["effectiveManifest"] = effective
+    if error:
+        value["authorityError"] = error
+    return value
 
 
 def _load_registry() -> dict:
@@ -197,9 +287,10 @@ def doctor_skill(skill: dict) -> dict:
                 "present": False,
                 "reason": "missing " + ", ".join(missing),
             })
-    error = skill.get("_error")
+    effective, authority_error = effective_manifest(skill)
+    error = skill.get("_error") or authority_error
     return {"id": skill.get("id"), "ready": all(p["present"] for p in prereqs) and not error,
-            "prerequisites": prereqs, "error": error}
+            "prerequisites": prereqs, "error": error, "effectiveManifest": effective}
 
 
 # --- rekit's own requirements (base/build/recommended) --------------------
@@ -259,8 +350,7 @@ def _marker(skill: dict) -> str:
 def cmd_list(args) -> int:
     skills = discover()
     if args.json:
-        print(json.dumps([{k: v for k, v in s.items() if not k.startswith("_")}
-                          for s in skills], indent=2))
+        print(json.dumps([public_skill(s) for s in skills], indent=2))
         return 0
     if not skills:
         print("(no skills found under skills/)")
