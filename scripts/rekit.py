@@ -462,6 +462,18 @@ def cmd_info(args) -> int:
 
 def cmd_run(args) -> int:
     s = _get(args.id)
+    effective, authority_error = effective_manifest(s)
+    expected_digest = getattr(args, "expected_manifest_digest", None)
+    if authority_error or effective is None or (
+        expected_digest is not None and effective["digest"] != expected_digest
+    ):
+        print(json.dumps({
+            "ok": False,
+            "error": "effective manifest digest mismatch",
+            "expectedManifestDigest": expected_digest,
+            "actualManifestDigest": effective.get("digest") if effective else None,
+        }), file=sys.stderr)
+        return 5
     report = doctor_skill(s)
     if not report["ready"]:
         missing = [p for p in report["prerequisites"] if not p["present"]]
@@ -789,6 +801,8 @@ def build_parser() -> argparse.ArgumentParser:
     run = sub.add_parser("run", help="run a skill (checks prereqs first)")
     run.add_argument("--allow-dynamic", action="store_true",
                      help="consent to run a DYNAMIC skill (one that EXECUTES the target)")
+    run.add_argument("--expected-manifest-digest", metavar="SHA256",
+                     help="fail closed unless the dispatch entry has this effective digest")
     run.add_argument("id")
     run.add_argument("rest", nargs=argparse.REMAINDER,
                      help="arguments passed through to the skill")
