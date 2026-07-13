@@ -117,6 +117,13 @@
       "vendored": null,
       "runner": "scripts/run.py",
       "note": "BYO clang (+ a section extractor: otool on macOS, objcopy/objdump on Linux). Deliberately NOT keystone — keystone-engine ships no arm64-mac wheel, the same native-packaging trap as py7zr; the LLVM assembler cc-build already relies on covers x64/x86/arm64/arm cleanly. Closes rekit's shellcode loop: asm-assemble --out sc.bin → emulate-code sc.bin. `--format c` drops a ready-to-paste C array for a cc-build stub."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
     }
   },
   "bin-triage": {
@@ -205,6 +212,13 @@
       "runner": "scripts/triage.py",
       "pure_stdlib": true,
       "note": "Zero-dependency first-look. Routes to the format-specific analyzers (pe/elf/macho/dotnet-analyze) or unpack. The embedded-signature scan is a lightweight mini-binwalk; use binwalk-carve for real extraction."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
     }
   },
   "binwalk-carve": {
@@ -289,6 +303,13 @@
       "vendored": null,
       "runner": "scripts/run.py",
       "note": "BYO tool on PATH (binwalk pulls a whole extractor ecosystem; not bundled). Runs `binwalk -e` with cwd=outdir so the carved tree lands there on v2 or v3. Dispatcher prereq gate = honest degradation. Feeds the *-analyze / covert-scan skills on the revealed tree."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
     }
   },
   "cc-build": {
@@ -431,6 +452,13 @@
       "vendored": null,
       "runner": "scripts/run.py",
       "note": "BYO clang (or cc/gcc). Build a PoC and inspect it with a decompiler, or use --emit asm/ir to inspect compiler output. Pass shellcode or object output to emulate-code; pass executables to exec-observe only in an appropriate analysis environment."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
     }
   },
   "dex-dump": {
@@ -535,6 +563,14 @@
       "build_default": false,
       "license": "Apache-2.0",
       "note": "Original clean-room, dependency-free Rust implementation. The build requires Rust 1.74+, the aarch64-linux-android target, and Android NDK r25+; it installs bin/dex-dumper. The runner executes it only on the connected device and pulls /data/local/tmp/rekit-dex-dump. No third-party dumper source or binary is included."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target",
+        "execute_untrusted"
+      ],
+      "credential_use": false
     }
   },
   "dotnet-analyze": {
@@ -609,6 +645,13 @@
       "build": "scripts/build.sh",
       "pure_python": true,
       "note": "Vendored via `uv pip install --target scripts/site` (pure-python, portable; NO .NET runtime needed). Complements pe-analyze: a native PE routes there, a managed PE is analysed here. The P/Invoke surface is where pure-IL malware touches the OS."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
     }
   },
   "dotnet-decompile": {
@@ -691,6 +734,13 @@
       "vendored": null,
       "runner": "scripts/run.py",
       "note": "BYO tool on PATH (needs the .NET runtime, not bundled). The runner invokes ilspycmd; the dispatcher prereq gate gives honest degradation. Complements dotnet-analyze (static triage → this for full C#)."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
     }
   },
   "elf-analyze": {
@@ -765,6 +815,13 @@
       "build": "scripts/build.sh",
       "pure_python": true,
       "note": "Installed via `uv pip install --target scripts/site` (pure Python, portable). Pair with hex-view for raw bytes; the analyzer emits structured BINARY.* atoms."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
     }
   },
   "emulate-code": {
@@ -866,6 +923,14 @@
       "vendored": "scripts/site",
       "runner": "scripts/emulate.py",
       "note": "Vendored via `uv pip install --target` (native — platform-specific like the isolated-vm addon; ships wheels for common platforms). The dynamic tier's contained/emulation member: complements exec-observe (native run) and the tracer skills. Feed it shellcode carved by bin-triage or a function's bytes."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target",
+        "execute_untrusted"
+      ],
+      "credential_use": false
     }
   },
   "emulation-session": {
@@ -1123,6 +1188,14 @@
       "build": "scripts/build.sh",
       "build_default": false,
       "note": "Original file-backed session implementation. The session directory is the persistence boundary: Unicorn regions/registers are serialized explicitly, while Qiling uses its documented snapshot/restore API. Qiling rootfs data remains BYO. Build explicitly because the combined runtime is large and platform-specific."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target",
+        "execute_untrusted"
+      ],
+      "credential_use": false
     }
   },
   "exec-observe": {
@@ -1201,6 +1274,15 @@
       "runner": "scripts/run.py",
       "pure_stdlib": true,
       "note": "The dispatcher requires --allow-dynamic and the runner verifies consent again. Consent is not isolation: use a disposable VM, dedicated analysis host, or another boundary appropriate for the target."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target",
+        "execute_untrusted",
+        "network_access"
+      ],
+      "credential_use": false
     }
   },
   "frida-api-trace": {
@@ -1332,6 +1414,15 @@
       "vendored": null,
       "runner": "scripts/run.py",
       "note": "Rekit ships only the original parser/normalizer and generated Frida instrumentation. The API Monitor XML corpus is BYO, license-controlled user data stored in the gitignored assets/apimonitor directory or supplied with --definitions."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target",
+        "execute_untrusted",
+        "network_access"
+      ],
+      "credential_use": false
     }
   },
   "frida-android-instrument": {
@@ -1475,6 +1566,15 @@
       "vendored": null,
       "runner": "scripts/run.py",
       "note": "Rekit generates an original bounded Java agent and loads it through the BYO Frida CLI. No course scripts, APKs, Frida binaries, server, Gadget, or third-party payloads are redistributed."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target",
+        "execute_untrusted",
+        "network_access"
+      ],
+      "credential_use": false
     }
   },
   "frida-trace": {
@@ -1564,6 +1664,15 @@
       "vendored": null,
       "runner": "scripts/run.py",
       "note": "BYO frida-tools on PATH. Complements syscall-trace (kernel view) with an API/library view; great for seeing which library calls a sample makes even when statically obfuscated. Default hooks are curated globs; override with --patterns."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target",
+        "execute_untrusted",
+        "network_access"
+      ],
+      "credential_use": false
     }
   },
   "ghidra-decompile": {
@@ -1649,6 +1758,13 @@
       "vendored": "scripts/ghidra_decompile.py",
       "runner": "scripts/run.py",
       "note": "BYO Ghidra on PATH (a large JVM app; not bundled). We DO bundle the Ghidra post-script (scripts/ghidra_decompile.py, Jython) that decompiles all functions. The heavy sibling of native-decompile: native-decompile (rizin pdg) is Ghidra's decompiler without a JVM for the common case; this is full Ghidra for hard targets. Dispatcher prereq gate = honest degradation."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
     }
   },
   "gitops": {
@@ -1790,6 +1906,16 @@
           "error": "string?"
         }
       }
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target",
+        "modify_target",
+        "network_access",
+        "destructive"
+      ],
+      "credential_use": true
     }
   },
   "hex-view": {
@@ -1879,6 +2005,13 @@
       "runner": "scripts/hexview.py",
       "pure_stdlib": true,
       "note": "Zero-dependency skill with a pure Python standard-library runner and no build step."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
     }
   },
   "ioc-extract": {
@@ -1948,6 +2081,13 @@
       "runner": "scripts/extract.py",
       "pure_stdlib": true,
       "note": "Zero-dependency. Domains are filtered against a filename-extension blocklist and IPs against benign/octet checks to cut noise; both raw `value` and `defanged` are returned. A reporting utility over any file or an extracted/decompiled tree."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
     }
   },
   "intellidiff": {
@@ -1966,7 +2106,10 @@
       {
         "tool": "python3",
         "min_version": "3.8",
-        "check": ["python3", "--version"],
+        "check": [
+          "python3",
+          "--version"
+        ],
         "install_hint": "Install Python 3.8+; the runner uses only the standard library."
       }
     ],
@@ -1977,31 +2120,143 @@
       "notes": "Read-only file and directory inspection. Streams hashes, decodes text only in smart/lines modes, writes nothing, and never follows symlinks or executes input."
     },
     "entry": {
-      "command": ["python3", "scripts/run.py"],
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
       "args": [
-        {"name": "op", "type": "enum", "required": true, "desc": "operation to run", "choices": ["compare", "folder-compare", "duplicates", "hash", "lines"]},
-        {"name": "target", "type": "path", "required": true, "desc": "first file or directory"},
-        {"name": "other", "type": "path", "required": false, "desc": "second file or directory (compare operations)"},
-        {"name": "--mode", "type": "enum", "required": false, "desc": "exact or normalized-text comparison", "choices": ["exact", "smart"]},
-        {"name": "--ignore-blank", "type": "flag", "required": false, "desc": "smart mode: ignore blank lines"},
-        {"name": "--ignore-newlines", "type": "flag", "required": false, "desc": "smart mode: normalize line endings"},
-        {"name": "--ignore-whitespace", "type": "flag", "required": false, "desc": "smart mode: ignore leading and trailing whitespace"},
-        {"name": "--ignore-case", "type": "flag", "required": false, "desc": "smart mode: compare case-insensitively"},
-        {"name": "--normalize-tabs", "type": "flag", "required": false, "desc": "smart mode: expand tabs"},
-        {"name": "--unicode-normalize", "type": "flag", "required": false, "desc": "smart mode: apply Unicode NFKC normalization"},
-        {"name": "--binary", "type": "flag", "required": false, "desc": "include binary files in folder comparison"},
-        {"name": "--include-hidden", "type": "flag", "required": false, "desc": "include hidden paths in tree operations"},
-        {"name": "--depth", "type": "int", "required": false, "desc": "maximum tree recursion depth (default 10)"},
-        {"name": "--start", "type": "int", "required": false, "desc": "first selected line, 1-based"},
-        {"name": "--end", "type": "int", "required": false, "desc": "last selected line, inclusive"},
-        {"name": "--context", "type": "int", "required": false, "desc": "context lines before and after selection"},
-        {"name": "--max-diff-lines", "type": "int", "required": false, "desc": "maximum unified diff lines (default 2000)"},
-        {"name": "--format", "type": "enum", "required": false, "desc": "text or json (default json)", "choices": ["text", "json"]}
+        {
+          "name": "op",
+          "type": "enum",
+          "required": true,
+          "desc": "operation to run",
+          "choices": [
+            "compare",
+            "folder-compare",
+            "duplicates",
+            "hash",
+            "lines"
+          ]
+        },
+        {
+          "name": "target",
+          "type": "path",
+          "required": true,
+          "desc": "first file or directory"
+        },
+        {
+          "name": "other",
+          "type": "path",
+          "required": false,
+          "desc": "second file or directory (compare operations)"
+        },
+        {
+          "name": "--mode",
+          "type": "enum",
+          "required": false,
+          "desc": "exact or normalized-text comparison",
+          "choices": [
+            "exact",
+            "smart"
+          ]
+        },
+        {
+          "name": "--ignore-blank",
+          "type": "flag",
+          "required": false,
+          "desc": "smart mode: ignore blank lines"
+        },
+        {
+          "name": "--ignore-newlines",
+          "type": "flag",
+          "required": false,
+          "desc": "smart mode: normalize line endings"
+        },
+        {
+          "name": "--ignore-whitespace",
+          "type": "flag",
+          "required": false,
+          "desc": "smart mode: ignore leading and trailing whitespace"
+        },
+        {
+          "name": "--ignore-case",
+          "type": "flag",
+          "required": false,
+          "desc": "smart mode: compare case-insensitively"
+        },
+        {
+          "name": "--normalize-tabs",
+          "type": "flag",
+          "required": false,
+          "desc": "smart mode: expand tabs"
+        },
+        {
+          "name": "--unicode-normalize",
+          "type": "flag",
+          "required": false,
+          "desc": "smart mode: apply Unicode NFKC normalization"
+        },
+        {
+          "name": "--binary",
+          "type": "flag",
+          "required": false,
+          "desc": "include binary files in folder comparison"
+        },
+        {
+          "name": "--include-hidden",
+          "type": "flag",
+          "required": false,
+          "desc": "include hidden paths in tree operations"
+        },
+        {
+          "name": "--depth",
+          "type": "int",
+          "required": false,
+          "desc": "maximum tree recursion depth (default 10)"
+        },
+        {
+          "name": "--start",
+          "type": "int",
+          "required": false,
+          "desc": "first selected line, 1-based"
+        },
+        {
+          "name": "--end",
+          "type": "int",
+          "required": false,
+          "desc": "last selected line, inclusive"
+        },
+        {
+          "name": "--context",
+          "type": "int",
+          "required": false,
+          "desc": "context lines before and after selection"
+        },
+        {
+          "name": "--max-diff-lines",
+          "type": "int",
+          "required": false,
+          "desc": "maximum unified diff lines (default 2000)"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text or json (default json)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
       ],
       "result": {
         "channel": "stdout",
         "format": "text|json",
-        "fields": {"ok": "bool", "op": "string", "error": "string?"}
+        "fields": {
+          "ok": "bool",
+          "op": "string",
+          "error": "string?"
+        }
       }
     },
     "payload": {
@@ -2010,6 +2265,13 @@
       "runner": "scripts/run.py",
       "pure_stdlib": true,
       "note": "Adapted from the incoming IntelliDiff skill into one Rekit-contract entry point with structured output and SHA-256 identity checks."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
     }
   },
   "ios-dump": {
@@ -2120,6 +2382,15 @@
       "vendored": null,
       "runner": "scripts/run.py",
       "note": "BYO toolchain (like dotnet-decompile BYO ilspycmd): clone frida-ios-dump, pip install -r requirements.txt, and `npx frida-compile dump.ts -o dist/dump.js` (the TypeScript agent must be built before dump.py runs). Point the runner at it via --dump-tool or FRIDA_IOS_DUMP. Prereq-gated on frida-ps; device must be jailbroken with a matching frida-server + SSH. Pair with the Mach-O analyzers on the decrypted binary."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target",
+        "execute_untrusted",
+        "network_access"
+      ],
+      "credential_use": true
     }
   },
   "js-covert-scan": {
@@ -2188,6 +2459,13 @@
       "runner": "scripts/scan.py",
       "pure_stdlib": true,
       "note": "Zero-dependency detector (Unicode via stdlib unicodedata + regex). Emits judgment-free parallax atoms (XFRM.UNICODE / XFRM.BITWISE / XFRM.ENCODE / LOAD.EVAL / ENVI.ENVCHECK), each tagged method=\"covert-scan\"; the per-tactic note preserves which hiding tactic was seen, and the strongest signal is co-occurrence across families (hidden text + obfuscation + environment-keyed branching). Deliberately tactic-focused, not tied to any single incident."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
     }
   },
   "js-deobfuscate": {
@@ -2257,6 +2535,14 @@
       "build": "scripts/build.sh",
       "native_dependency": "isolated-vm (ships prebuilds for darwin-arm64/x64, linux-x64/arm64 glibc+musl, win32-x64)",
       "note": "The local node_modules tree cannot be reduced to a single-file bundle because webcrack's isolated-vm native addon must load a platform binary. Build it from package-lock.json with rekit install js-deobfuscate."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target",
+        "execute_untrusted"
+      ],
+      "credential_use": false
     }
   },
   "js-sourcemap-extract": {
@@ -2333,6 +2619,13 @@
       "runner": "scripts/extract.py",
       "pure_stdlib": true,
       "note": "Zero-dependency. Complements js-deobfuscate: if a map is present, this recovers the true original source instantly (no AST guessing); otherwise fall back to js-deobfuscate. Feeds js-covert-scan."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
     }
   },
   "js-string-decode": {
@@ -2413,6 +2706,13 @@
       "runner": "scripts/decode.py",
       "pure_stdlib": true,
       "note": "Zero-dependency static decoder. Two-phase: (1) detect decoder FUNCTIONS (constant-key XOR-charCode body, optional base64/atob front transform) and decode their call-site payloads, resolving payload/key VARIABLES by nearest-preceding constant assignment; (2) inline sites (arr.map(c=>c^K), s.split('').map(...charCodeAt^K), for-of over an array/string/escape-blob). Emits decoded plaintext to <outdir>/decoded-strings.js as JS string literals so the fold rescans it as DerivedSource. Custom obfuscation is heuristic — see SKILL.md for the shapes it does and does not handle."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
     }
   },
   "jvm-decompile": {
@@ -2497,6 +2797,13 @@
       "vendored": null,
       "runner": "scripts/run.py",
       "note": "BYO tool on PATH (jadx is a large JVM app + needs a JRE, so it's not bundled). The runner just invokes jadx; the dispatcher's prereq gate provides honest degradation when it's missing. Feeds js/py covert-scan style review on the recovered .java."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
     }
   },
   "macho-analyze": {
@@ -2568,6 +2875,13 @@
       "build": "scripts/build.sh",
       "pure_python": true,
       "note": "Installed via `uv pip install --target scripts/site` (pure Python, portable). Completes the PE/ELF/Mach-O triage trio and emits structured BINARY.* atoms."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
     }
   },
   "minimal-executable": {
@@ -2673,6 +2987,13 @@
       "runner": "scripts/run.py",
       "pure_stdlib": true,
       "note": "One operational builder replaces the former format-specific tutorial skills. It emits conservative parser-clean shapes and keeps structural/tool-readable/loader/native proof claims separate. The static arm64 Mach-O is explicitly a research artifact, not a modern runnable claim."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
     }
   },
   "native-disassemble": {
@@ -2780,6 +3101,13 @@
       "vendored": null,
       "runner": "scripts/run.py",
       "note": "Pure-stdlib static wrapper with no vendored disassembler. Prefers the lightweight LLVM/GNU objdump path, then falls back to analyzed Rizin/radare2 function disassembly. No Ghidra or Java dependency."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
     }
   },
   "native-decompile": {
@@ -2864,6 +3192,13 @@
       "vendored": null,
       "runner": "scripts/run.py",
       "note": "BYO tool on PATH (rizin ships a large native toolchain; not bundled). Uses rizin's built-in Ghidra decompiler (`pdg`) — no separate Ghidra/JVM needed. Dispatcher prereq gate = honest degradation. Complements the *-analyze triage skills."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
     }
   },
   "net-capture": {
@@ -2953,6 +3288,15 @@
       "vendored": null,
       "runner": "scripts/run.py",
       "note": "BYO tcpdump on PATH (root for capture). Writes a pcap + a talkers/DNS summary; feed the IPs/domains into ioc-extract. Pairs with syscall-trace for full behavioral coverage."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target",
+        "execute_untrusted",
+        "network_access"
+      ],
+      "credential_use": false
     }
   },
   "ord-lookup": {
@@ -3038,6 +3382,13 @@
       "vendored": "assets/ordinals.json",
       "runner": "scripts/run.py",
       "note": "The static database contains 515 ordinals across ws2_32 and oleaut32; wsock32/mswsock reuse the ws2_32 entries. The runner uses only the Python standard library."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
     }
   },
   "pe-analyze": {
@@ -3112,6 +3463,13 @@
       "build": "scripts/build.sh",
       "pure_python": true,
       "note": "Installed via `uv pip install --target scripts/site` (pure Python, portable). Pair with elf-analyze or hex-view; the analyzer emits structured BINARY.* atoms."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
     }
   },
   "pe-unmap": {
@@ -3204,6 +3562,13 @@
       "build": "scripts/build.ps1",
       "license": "BSD-2-Clause (pe_unmapper + libpeconv)",
       "note": "Vendored Windows x64 release build (libpeconv-backed). The third step of dump recovery: OEP-find → dump → [this] realign → IAT-rebuild. Pair with pyscylla for the IAT rebuild step. Rebuild from source via scripts/build.ps1 (needs VS 2022 + CMake)."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
     }
   },
   "protection-survey": {
@@ -3301,6 +3666,13 @@
       "runner": "scripts/run.py",
       "pure_stdlib": true,
       "note": "Original explainable scanner with broad language/build-file coverage. It replaces the old unlicensed narrow survey script and reports review evidence rather than intent judgments."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
     }
   },
   "py-covert-scan": {
@@ -3373,6 +3745,13 @@
       "runner": "scripts/scan.py",
       "pure_stdlib": true,
       "note": "Zero-dependency detector, the Python sibling of js-covert-scan (same tactic model, emitting real parallax atoms XFRM.UNICODE / XFRM.ENCODE / LOAD.EVAL / LOAD.DESER / LOAD.REFLECT / ENVI.ENVCHECK / ENVI.SANDBOX / ENVI.DEBUG, each tagged method=\"covert-scan\"). Strongest signal is decode-then-exec co-occurring with a sandbox/platform check (evasive dropper). Pairs with pyc-decompile for the Python-malware path."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
     }
   },
   "pyc-decompile": {
@@ -3439,6 +3818,13 @@
       "build": "scripts/build.sh",
       "pure_python": true,
       "note": "Vendored via `uv pip install --target scripts/site` (pure-Python → portable across OS/arch, unlike webcrack's native addon). decompyle3 targets CPython 3.7-3.8 bytecode; older bytecode uses uncompyle6, 3.9+ needs a version-matched decompiler — the runner reports the detected version and whether it's in range."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
     }
   },
   "pyinstaller-extract": {
@@ -3515,6 +3901,13 @@
       "runner": "scripts/extract.py",
       "pure_stdlib": true,
       "note": "Zero-dependency (pyinstxtractor-style). Closes the Python-malware chain: unpack → pyinstaller-extract → pyc-decompile → py-covert-scan. Reconstructs .pyc headers from the PYZ's embedded magic so decompyle3/pyc-decompile can read them (best on 3.7-3.8 targets)."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
     }
   },
   "pyscylla": {
@@ -3643,6 +4036,13 @@
       "external": "libscylla DLL supplied by the operator in the Git-ignored skills/pyscylla/bin directory, via PYSCYLLA_DLL, or on PATH",
       "license": "Rekit adapter: Apache-2.0; external Scylla/libscylla: GPL-3.0-only",
       "note": "Rekit does not commit, fetch, or build libscylla. A private local copy may live in the Git-ignored skills/pyscylla/bin directory. The operator must obtain it from upstream, comply with its license, and match the architectures of Python, libscylla, and the target. Dump-recovery path: iat-find → dump → fix → rebuild. Pair with pe-unmap for realignment."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
     }
   },
   "qiling-emulate": {
@@ -3733,6 +4133,14 @@
       "vendored": "scripts/site",
       "runner": "scripts/run.py",
       "note": "BYO rootfs (github.com/qilingframework/rootfs) — matching the target's OS/arch backs the emulation. Qiling is heavier than Unicorn (pulls unicorn/capstone/keystone/pefile/…); vendored via `uv pip install --target`. The mid-tier between emulate-code (no OS) and exec-observe (native): full-binary behavior, contained, cross-platform."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target",
+        "execute_untrusted"
+      ],
+      "credential_use": false
     }
   },
   "r2-recon": {
@@ -3828,6 +4236,13 @@
       "vendored": null,
       "runner": "scripts/run.py",
       "note": "BYO radare2 on PATH (a large native toolchain; not bundled). The cross-format, relational sibling of pe/elf/macho-analyze: those are pure-python structural parses for one format each; r2-recon is one skill over r2's auto-detect + analysed functions/strings/xrefs. Emits the same BINARY.* atoms so a caller can substitute freely. Complements native-decompile (rizin pdg) — recon here, decompile there. Dispatcher prereq gate = honest degradation."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
     }
   },
   "secrets-scan": {
@@ -3903,6 +4318,13 @@
       "runner": "scripts/scan.py",
       "pure_stdlib": true,
       "note": "Zero-dependency. Provider patterns are specific/high-confidence; the generic catch is entropy-gated + placeholder-filtered to limit noise. Values are redacted (prefix…suffix [len]); private keys report presence only. Emits SECRET.* atoms."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
     }
   },
   "shellcode-stub": {
@@ -4026,6 +4448,13 @@
       "vendored": null,
       "runner": "scripts/run.py",
       "note": "BYO clang for --emit exe (or --emit c and hand the source to cc-build). Completes the CONSTRUCT chain: asm-assemble --out sc.bin → shellcode-stub sc.bin --out poc → exec-observe/qiling-emulate. The loader exit code is the shellcode's return value, so a `mov w0,#42; ret` PoC exits 42 — easy to assert (verified end-to-end). `--os posix` (default) native host-arch build is the guaranteed path; a cross-OS --target needs a cross sysroot/toolchain (pass it via --cflags, e.g. --sysroot=… -fuse-ld=lld) — without one the link fails honestly. `--os windows` defaults to x86_64-w64-mingw32 and needs the mingw-w64 headers + sysroot (`brew install mingw-w64` on macOS) — the runner sniffs the failure and prints the install hint; cross-OS PoCs are then detonated under qiling-emulate with a Windows rootfs."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
     }
   },
   "syscall-trace": {
@@ -4112,6 +4541,15 @@
       "vendored": null,
       "runner": "scripts/run.py",
       "note": "BYO tracer on PATH. The core behavioral dynamic skill; complements exec-observe (surface only) and emulate-code (contained). Feed the recovered files/network into ioc-extract for reporting."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target",
+        "execute_untrusted",
+        "network_access"
+      ],
+      "credential_use": false
     }
   },
   "unpack": {
@@ -4190,6 +4628,13 @@
       "runner": "scripts/unpack.py",
       "pure_stdlib": true,
       "note": "Pure-stdlib core (zip/tar/gz/bz2/xz), no vendored deps. 7z/RAR route to 7z/7za/7zz/unar on PATH with honest degradation (py7zr was rejected: it pulls native, python-ABI-locked deps that break the portable-vendored model). Feeds pyc-decompile / the analyzers on the revealed tree."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
     }
   },
   "yara-scan": {
@@ -4273,6 +4718,13 @@
       "vendored": "assets/starter.yar",
       "runner": "scripts/run.py",
       "note": "BYO yara/yara-x CLI on PATH (native tool; not bundled). The starter pack at assets/starter.yar covers embedded/base64 PE, UPX, PHP webshell, Windows exec/download cradles, and curl|sh. Bring a full corpus via --rules."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
     }
   }
 }

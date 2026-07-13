@@ -172,6 +172,7 @@ class RekitCliTests(unittest.TestCase):
             skill = {
                 "id": "fixture-skill",
                 "_dir": skill_dir,
+                "safety": {"executes_input": "no", "network": "none", "tier": 0},
                 "prerequisites": [
                     {"tool": "fixture runtime", "check": ["python3", "scripts/check.py"]}
                 ],
@@ -189,6 +190,7 @@ class RekitCliTests(unittest.TestCase):
             skill = {
                 "id": "fixture-skill",
                 "_dir": Path(directory),
+                "safety": {"executes_input": "no", "network": "none", "tier": 0},
                 "prerequisites": [],
                 "payload": {"vendored": "scripts/site"},
             }
@@ -210,6 +212,55 @@ class RekitCliTests(unittest.TestCase):
         output = json.loads(result.stdout)
         self.assertFalse(output["ok"])
         self.assertEqual(output["error"], "dynamic skill requires consent")
+
+    def test_all_catalog_entries_have_valid_least_authority_contracts(self) -> None:
+        registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
+        self.assertEqual(len(registry), 45)
+        for skill_id, entry in registry.items():
+            with self.subTest(skill=skill_id):
+                effective, error = REKIT_MODULE.effective_manifest({"id": skill_id, **entry})
+                self.assertIsNone(error)
+                self.assertIsNotNone(effective)
+                self.assertFalse(effective["authority"]["legacy"])
+                self.assertRegex(effective["digest"], r"^[0-9a-f]{64}$")
+        self.assertEqual(
+            registry["gitops"]["authority"],
+            {"version": 1, "actions": [
+                "read_local_target", "modify_target", "network_access", "destructive",
+            ], "credential_use": True},
+        )
+        self.assertTrue(registry["ios-dump"]["authority"]["credential_use"])
+
+    def test_authority_validation_is_fail_closed_and_legacy_is_conservative(self) -> None:
+        static = {"id": "legacy", "version": "1", "safety": {
+            "tier": 0, "executes_input": "no", "network": "none",
+        }}
+        effective, error = REKIT_MODULE.effective_manifest(static)
+        self.assertIsNone(error)
+        self.assertTrue(effective["authority"]["legacy"])
+        self.assertEqual(effective["authority"]["actions"], ["read_local_target"])
+
+        for unsafe in (
+            {**static, "safety": {"tier": 1, "executes_input": "full", "network": "none"}},
+            {**static, "safety": {"tier": 1, "executes_input": "no", "network": "optional"}},
+            {**static, "authority": {"version": 1,
+                "actions": ["read_local_target", "network_access"], "credential_use": False}},
+        ):
+            with self.subTest(skill=unsafe):
+                effective, error = REKIT_MODULE.effective_manifest(unsafe)
+                self.assertIsNone(effective)
+                self.assertIsNotNone(error)
+
+    def test_public_catalog_projection_has_authorities_digest_and_no_source_path(self) -> None:
+        listed = run_rekit("list", "--json")
+        self.assertEqual(listed.returncode, 0, listed.stderr)
+        entries = json.loads(listed.stdout)
+        self.assertTrue(entries)
+        for entry in entries:
+            self.assertNotIn("path", entry)
+            self.assertNotIn("authorityError", entry)
+            self.assertEqual(entry["effectiveManifest"]["toolId"], entry["id"])
+            self.assertRegex(entry["effectiveManifest"]["digest"], r"^[0-9a-f]{64}$")
 
 
 if __name__ == "__main__":

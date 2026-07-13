@@ -48,6 +48,11 @@ directory name; the value is its manifest:
     "version": "0.1.0",
     "capabilities": ["deobfuscate-js", "unpack-js-bundle"],
     "kind": "analyze",
+    "authority": {
+      "version": 1,
+      "actions": ["read_local_target"],
+      "credential_use": false
+    },
     "prerequisites": [
       {"tool": "node", "min_version": "18", "check": ["node", "--version"],
        "install_hint": "Install Node.js >= 18 (https://nodejs.org)"}
@@ -106,6 +111,22 @@ description: "Deobfuscate and unpack obfuscated JavaScript with webcrack. Use wh
 - **`prerequisites`** — external tools the skill needs on `PATH`. `check` is run
   verbatim; the first `\d+(\.\d+)*` in its output is compared to `min_version`.
   Missing prerequisites and declared payload files make a skill unavailable.
+- **`authority`** — the versioned semantic ceiling for what the skill may do to the
+  authorized target or external systems. Version 1 uses exact action strings in this
+  canonical least-to-most-impact order: `read_local_target`, `execute_untrusted`,
+  `modify_target`, `network_access`, `register_account`, `enroll_challenge`,
+  `create_credential`, `submit_challenge`, `persistence`, `destructive`,
+  `third_party_message`, `expand_scope`. `credential_use` is a separate required
+  boolean because using an existing opaque credential is not itself an action and does
+  not grant account or credential creation. Declare only what the dispatcher can
+  actually exercise. Sandboxed/full input execution requires `execute_untrusted`;
+  external network modes require `network_access`; contradictions fail `doctor`.
+  Authority is target/action authorization metadata, not a safety tier, isolation
+  promise, or operator consent. A low tier or `--allow-dynamic` can never widen it.
+  Legacy manifests are compatible only when explicitly static and offline, where Rekit
+  derives `read_local_target` and marks the effective contract `legacy`; risky legacy
+  entries are unavailable pending review. Catalog projections expose this safe contract
+  and its SHA-256 digest but omit storage `path` and never contain credential values.
 - **`safety`** — `executes_input` (`"no"` | `"sandboxed"` | `"full"`) and `network`
   let a caller pick a sandbox tier. Analysis skills should be `"no"` / `network:
   "none"` where possible; use `"sandboxed"` when the skill runs a narrow slice of the
