@@ -118,15 +118,22 @@ description: "Deobfuscate and unpack obfuscated JavaScript with webcrack. Use wh
   `create_credential`, `submit_challenge`, `persistence`, `destructive`,
   `third_party_message`, `expand_scope`. `credential_use` is a separate required
   boolean because using an existing opaque credential is not itself an action and does
-  not grant account or credential creation. Declare only what the dispatcher can
+  not grant account or credential creation. In version 1, `true` is a mandatory
+  invocation floor: every dispatch must carry an exact opaque account reference and an
+  approved credential-use scope. `false` forbids runtime credential/account intent
+  unless the declared action itself requires exact account intent. Optional credential
+  modes require separate manifest variants (or a future schema version), never a
+  model-selected widening. Declare only what the dispatcher can
   actually exercise. Sandboxed/full input execution requires `execute_untrusted`;
   external network modes require `network_access`; contradictions fail `doctor`.
   Authority is target/action authorization metadata, not a safety tier, isolation
   promise, or operator consent. A low tier or `--allow-dynamic` can never widen it.
   Legacy manifests are compatible only when explicitly static and offline, where Rekit
   derives `read_local_target` and marks the effective contract `legacy`; risky legacy
-  entries are unavailable pending review. Catalog projections expose this safe contract
-  and its SHA-256 digest but omit storage `path` and never contain credential values.
+  entries are unavailable pending review. The effective digest binds a second digest of
+  the complete canonical source registry entry (including dispatcher arguments and
+  worker requirements). Catalog projections expose only those safe digests and action
+  names; they omit storage `path` and never contain credential values.
 - **`safety`** — `executes_input` (`"no"` | `"sandboxed"` | `"full"`) and `network`
   let a caller pick a sandbox tier. Analysis skills should be `"no"` / `network:
   "none"` where possible; use `"sandboxed"` when the skill runs a narrow slice of the

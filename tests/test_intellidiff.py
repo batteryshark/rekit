@@ -23,8 +23,7 @@ def run(*args: str) -> subprocess.CompletedProcess[str]:
 
 class IntelliDiffTests(unittest.TestCase):
     def test_mcp_schema_and_call_preserve_optional_second_path(self) -> None:
-        registry = json.loads((ROOT / "registry.json").read_text(encoding="utf-8"))
-        skill = {"id": "intellidiff", **registry["intellidiff"]}
+        skill = next(item for item in MCP.load_catalog() if item["id"] == "intellidiff")
         tool = MCP.skill_to_tool(skill, "", {"ready": True}, False)
         self.assertEqual(tool["inputSchema"]["properties"]["op"]["enum"][0], "compare")
         call = MCP.build_call_args(skill, {"op": "hash", "target": "sample.bin"})
