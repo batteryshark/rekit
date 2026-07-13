@@ -1,10 +1,11 @@
 # Skill contract
 
-A skill is a directory under `skills/<id>/`. rekit follows the standard Agent Skills
-layout and adds one optional directory for prebuilt native executables:
+A skill is a directory under `skills/`, directly at `skills/<id>/` by default or at
+the optional registry path `skills/<group>/.../<id>/`. Rekit follows the standard
+Agent Skills layout and adds one optional directory for prebuilt native executables:
 
 ```
-skills/<id>/
+skills/[<group>/.../]<id>/
   SKILL.md       trigger and workflow                                      (required)
   scripts/       executable source and build scripts                       (optional)
   references/    detailed documentation loaded on demand                   (optional)
@@ -28,7 +29,8 @@ and skill-local `bin/` directories are rekit extensions permitted by the open fo
 neither changes how a compatible agent discovers and loads `SKILL.md`.
 
 The dispatcher (`bin/rekit`) is **pure stdlib**: it reads `registry.json` (plain JSON)
-and pairs each entry with its `skills/<id>/` directory. Registration is a registry
+and pairs each entry with `skills/<id>/`, or with `skills/<path>/` when the entry has
+an optional `path`. Registration is a registry
 entry — `rekit doctor` flags any skill dir with no entry (and any entry with no dir) so
 the two can't silently drift.
 
@@ -40,6 +42,7 @@ directory name; the value is its manifest:
 ```json
 {
   "js-deobfuscate": {
+    "path": "javascript/js-deobfuscate",
     "name": "JavaScript Deobfuscator",
     "description": "One line: what it does and, crucially, whether it executes the input.",
     "version": "0.1.0",
@@ -66,6 +69,9 @@ directory name; the value is its manifest:
 
 The dispatcher builds each skill dict as: `id` from the key, everything else from the
 entry (`name`, `description`, `capabilities`, `entry`, …), plus the resolved `_dir`.
+`path` is a forward-slash relative path beneath `skills/`; it must end in the skill id
+and may not contain absolute or dot segments. It only controls storage—catalog, CLI,
+and MCP identities remain the flat registry id.
 
 ## `SKILL.md` frontmatter
 
@@ -133,7 +139,7 @@ Agent-agnostic, three equivalent ways:
 bin/rekit run <id> <arg1> <arg2> ...
 
 # direct (a caller that already knows the entry)
-node skills/<id>/scripts/<payload> <arg1> <arg2> ...
+node skills/[<group>/.../]<id>/scripts/<payload> <arg1> <arg2> ...
 
 # programmatic (Python): read the skill's registry.json entry, check prereqs, exec entry.command + args
 ```
@@ -162,7 +168,8 @@ repository's redistribution boundary.
 
 1. Add a `"<id>": { … }` entry to `registry.json` (name, description, capabilities,
    prerequisites, safety, entry — see the shape above).
-2. `mkdir skills/<id>` with a `SKILL.md` (Markdown body) and put the runner in
+2. `mkdir skills/<id>` (or `skills/<group>/<id>` plus a matching registry `path`) with
+   a `SKILL.md` (Markdown body) and put the runner in
    `scripts/` (plus a `scripts/build.sh` if it installs local deps). Put prebuilt native
    executables in `bin/`; put data, templates, and rule packs in `assets/`.
 3. `bin/rekit sync-docs` to write the `name` + `description` frontmatter into SKILL.md

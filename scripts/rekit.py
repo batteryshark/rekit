@@ -2,8 +2,8 @@
 """rekit — discover, doctor, and run self-contained agent skills.
 
 Pure stdlib. Skill manifests live in ONE central registry, ../registry.json, keyed by
-skill id; each skills/<id>/ dir holds the SKILL.md doc (name + description frontmatter)
-+ the runner. Discovery = read the registry and pair each entry with its directory.
+skill id; each entry may set ``path`` to place its skill below a grouping directory
+(default: the id). Discovery pairs every entry with that directory below ``skills/``.
 See ../SKILL-CONTRACT.md for the manifest shape.
 
     rekit list [--json]
@@ -50,19 +50,54 @@ def _load_registry() -> dict:
     return data
 
 
+def _skill_dir(sid: str, entry: dict) -> tuple[Path, str | None]:
+    """Resolve an entry's optional path safely beneath ``skills/``."""
+    raw = entry.get("path", sid)
+    if not isinstance(raw, str) or not raw or "\\" in raw:
+        return SKILLS_DIR / sid, "path must be a non-empty, forward-slash relative path"
+    segments = raw.split("/")
+    if any(not part or part in (".", "..") for part in segments):
+        return SKILLS_DIR / sid, "path must stay beneath skills/ and contain no dot segments"
+    rel = Path(raw)
+    if rel.is_absolute():
+        return SKILLS_DIR / sid, "path must stay beneath skills/ and contain no dot segments"
+    if rel.name != sid:
+        return SKILLS_DIR / sid, f"path must end in the skill id '{sid}'"
+    root = SKILLS_DIR.resolve()
+    resolved = (SKILLS_DIR / rel).resolve()
+    try:
+        resolved.relative_to(root)
+    except ValueError:
+        return SKILLS_DIR / sid, "path resolves outside skills/"
+    return SKILLS_DIR / rel, None
+
+
 def discover() -> list[dict]:
-    """Read the central registry and pair each entry with its skills/<id>/ dir. A
+    """Read the central registry and pair each entry with its configured skill dir. A
     registry entry whose directory is missing is surfaced with an `_error` (honest
     degradation), never silently dropped."""
     skills = []
     registry = _load_registry()
+    owners: dict[Path, list[str]] = {}
+    resolved: dict[str, tuple[Path, str | None]] = {}
+    for sid, entry in registry.items():
+        directory, error = _skill_dir(sid, entry)
+        resolved[sid] = (directory, error)
+        if not error:
+            owners.setdefault(directory.resolve(), []).append(sid)
     for sid in sorted(registry):
-        d = SKILLS_DIR / sid
         data = dict(registry[sid])
+        d, path_error = resolved[sid]
         data["id"] = sid
         data["_dir"] = d
-        if not d.is_dir():
-            data["_error"] = f"registry entry '{sid}' has no directory (skills/{sid}/)"
+        if path_error:
+            data["_error"] = f"registry entry '{sid}' has invalid path: {path_error}"
+        elif len(owners[d.resolve()]) > 1:
+            claimed = ", ".join(sorted(owners[d.resolve()]))
+            data["_error"] = f"skill path is claimed by multiple registry ids: {claimed}"
+        elif not d.is_dir():
+            rel = d.relative_to(SKILLS_DIR)
+            data["_error"] = f"registry entry '{sid}' has no directory (skills/{rel}/)"
         skills.append(data)
     return skills
 
@@ -72,9 +107,19 @@ def _registry_drift() -> tuple[list[str], list[str]]:
     the registry, and registry ids whose directory is missing. The trade-off of a
     central registry — surfaced loudly by `doctor` so drift can't hide."""
     registry = _load_registry()
-    dirs = {p.name for p in SKILLS_DIR.iterdir()
-            if p.is_dir() and (p / "SKILL.md").is_file()} if SKILLS_DIR.is_dir() else set()
-    return sorted(dirs - set(registry)), sorted(set(registry) - dirs)
+    actual = {
+        p.parent.relative_to(SKILLS_DIR).as_posix()
+        for p in SKILLS_DIR.rglob("SKILL.md")
+    } if SKILLS_DIR.is_dir() else set()
+    expected = {}
+    missing = []
+    for skill in discover():
+        sid, directory = skill["id"], skill["_dir"]
+        if skill.get("_error") or not (directory / "SKILL.md").is_file():
+            missing.append(sid)
+            continue
+        expected[directory.relative_to(SKILLS_DIR).as_posix()] = sid
+    return sorted(actual - set(expected)), sorted(missing)
 
 
 def _get(skill_id: str) -> dict:
@@ -294,9 +339,11 @@ def cmd_doctor(args) -> int:
         if orphans or missing:
             print("\nregistry drift:")
             for sid in orphans:
-                print(f"  ! skills/{sid}/ has a SKILL.md but no registry.json entry (unregistered)")
+                print(f"  ! skills/{sid}/ has a SKILL.md but no registry.json path (unregistered)")
             for sid in missing:
-                print(f"  ! registry.json lists '{sid}' but skills/{sid}/ is missing")
+                entry = _load_registry().get(sid, {})
+                path = entry.get("path", sid)
+                print(f"  ! registry.json lists '{sid}' but skills/{path}/ is missing or invalid")
             print("  run `rekit sync-docs` after fixing registry.json to re-sync SKILL.md frontmatter.")
         print("Tip: `rekit setup [--tier all]` prints install commands for missing base/build/recommended tools.")
     return 0 if all_ready else 1
@@ -544,8 +591,16 @@ def cmd_sync_docs(args) -> int:
     registry — registry.json is the source of truth, frontmatter is a synced projection."""
     registry = _load_registry()
     changed = []
+    invalid = []
+    by_id = {skill["id"]: skill for skill in discover()}
     for sid in sorted(registry):
-        md = SKILLS_DIR / sid / "SKILL.md"
+        skill = by_id[sid]
+        directory = skill["_dir"]
+        error = skill.get("_error", "")
+        if "invalid path" in error or "multiple registry ids" in error:
+            invalid.append(sid)
+            continue
+        md = directory / "SKILL.md"
         if not md.is_file():
             continue
         text = md.read_text(encoding="utf-8")
@@ -560,6 +615,9 @@ def cmd_sync_docs(args) -> int:
             changed.append(sid)
             if not args.check:
                 md.write_text(new_text, encoding="utf-8")
+    if invalid:
+        print("invalid registry path(s): " + ", ".join(invalid))
+        return 1
     if args.check:
         if changed:
             print("out of sync with registry.json: " + ", ".join(changed))
