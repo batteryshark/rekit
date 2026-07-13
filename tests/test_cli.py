@@ -23,6 +23,13 @@ assert MODULE_SPEC and MODULE_SPEC.loader
 REKIT_MODULE = importlib.util.module_from_spec(MODULE_SPEC)
 MODULE_SPEC.loader.exec_module(REKIT_MODULE)
 
+MCP_SPEC = importlib.util.spec_from_file_location(
+    "rekit_mcp_authority", ROOT / "scripts" / "rekit_mcp.py"
+)
+assert MCP_SPEC and MCP_SPEC.loader
+MCP_MODULE = importlib.util.module_from_spec(MCP_SPEC)
+MCP_SPEC.loader.exec_module(MCP_MODULE)
+
 
 def run_rekit(*args: str) -> subprocess.CompletedProcess:
     return subprocess.run(
@@ -261,6 +268,27 @@ class RekitCliTests(unittest.TestCase):
             self.assertNotIn("authorityError", entry)
             self.assertEqual(entry["effectiveManifest"]["toolId"], entry["id"])
             self.assertRegex(entry["effectiveManifest"]["digest"], r"^[0-9a-f]{64}$")
+            self.assertRegex(entry["effectiveManifest"]["sourceManifestDigest"],
+                             r"^[0-9a-f]{64}$")
+
+    def test_effective_digest_binds_dispatcher_arguments_and_mcp_fails_closed(self) -> None:
+        registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
+        skill_id, entry = next(iter(registry.items()))
+        original, error = REKIT_MODULE.effective_manifest({"id": skill_id, **entry})
+        self.assertIsNone(error)
+        changed_entry = json.loads(json.dumps(entry))
+        changed_entry.setdefault("entry", {}).setdefault("args", []).append({
+            "name": "--authority-drift-fixture", "type": "flag", "desc": "fixture",
+        })
+        changed, error = REKIT_MODULE.effective_manifest({"id": skill_id, **changed_entry})
+        self.assertIsNone(error)
+        self.assertNotEqual(original["sourceManifestDigest"],
+                            changed["sourceManifestDigest"])
+        self.assertNotEqual(original["digest"], changed["digest"])
+
+        invalid = {"id": "invalid", "entry": {"args": []},
+                   "authorityError": "malformed", "effectiveManifest": None}
+        self.assertIsNone(MCP_MODULE.skill_to_tool(invalid, "", {"ready": True}, False))
 
 
 if __name__ == "__main__":

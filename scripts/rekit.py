@@ -96,10 +96,21 @@ def effective_manifest(skill: dict) -> tuple[dict | None, str | None]:
     if error:
         return None, error
     safety = skill.get("safety") or {}
+    source_manifest = {
+        key: item for key, item in skill.items()
+        if not key.startswith("_") and key not in {
+            "id", "effectiveManifest", "authorityError",
+        }
+    }
+    source_raw = json.dumps(
+        {"toolId": skill.get("id"), "manifest": source_manifest},
+        sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+    )
     value = {
         "schemaVersion": AUTHORITY_VERSION,
         "toolId": skill.get("id"),
         "toolVersion": skill.get("version"),
+        "sourceManifestDigest": hashlib.sha256(source_raw.encode("utf-8")).hexdigest(),
         "safety": {
             "tier": safety.get("tier"),
             "executesInput": safety.get("executes_input"),
