@@ -270,8 +270,10 @@ def build_call_args(skill: dict, arguments: dict) -> list[str]:
 # --- execute a tool call -----------------------------------------------------
 
 def run_skill(rekit_bin: str, skill_id: str, call_args: list[str],
-              allow_dynamic: bool, timeout: int) -> dict:
-    argv = [rekit_bin, "run"]
+              allow_dynamic: bool, timeout: int,
+              expected_manifest_digest: str) -> dict:
+    argv = [rekit_bin, "run", "--expected-manifest-digest",
+            expected_manifest_digest]
     if allow_dynamic:
         argv.append("--allow-dynamic")
     argv += [skill_id, *call_args]
@@ -373,8 +375,10 @@ class Server:
         except UserError as e:
             return {"isError": True,
                     "content": [{"type": "text", "text": f"rekit: {e}"}]}
-        return run_skill(self.rekit, tool["_rekit_skill_id"], call_args,
-                         self.allow_dynamic, self.timeout)
+        return run_skill(
+            self.rekit, tool["_rekit_skill_id"], call_args,
+            self.allow_dynamic, self.timeout, tool["_rekit_manifest_digest"],
+        )
 
     # -- dispatch ------------------------------------------------------------
 

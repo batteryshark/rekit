@@ -290,6 +290,34 @@ class RekitCliTests(unittest.TestCase):
                    "authorityError": "malformed", "effectiveManifest": None}
         self.assertIsNone(MCP_MODULE.skill_to_tool(invalid, "", {"ready": True}, False))
 
+    def test_run_fails_before_dispatch_when_expected_manifest_drifted(self) -> None:
+        registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
+        skill_id, entry = next(iter(registry.items()))
+        original, error = REKIT_MODULE.effective_manifest({"id": skill_id, **entry})
+        self.assertIsNone(error)
+        changed = json.loads(json.dumps(entry))
+        changed.setdefault("entry", {}).setdefault("args", []).append({
+            "name": "--drift", "type": "flag",
+        })
+        args = SimpleNamespace(
+            id=skill_id, rest=[], allow_dynamic=False,
+            expected_manifest_digest=original["digest"],
+        )
+        with mock.patch.object(REKIT_MODULE, "_get", return_value={
+            "id": skill_id, "_dir": ROOT / "skills", **changed,
+        }), mock.patch.object(REKIT_MODULE.subprocess, "run") as execute:
+            self.assertEqual(REKIT_MODULE.cmd_run(args), 5)
+            execute.assert_not_called()
+
+    def test_mcp_passes_its_pinned_digest_to_dispatcher(self) -> None:
+        with mock.patch.object(MCP_MODULE.subprocess, "run") as execute:
+            execute.return_value = SimpleNamespace(returncode=0, stdout="ok", stderr="")
+            MCP_MODULE.run_skill("rekit", "scan", [], False, 10, "a" * 64)
+        self.assertEqual(execute.call_args.args[0][:3], [
+            "rekit", "run", "--expected-manifest-digest",
+        ])
+        self.assertEqual(execute.call_args.args[0][3], "a" * 64)
+
 
 if __name__ == "__main__":
     unittest.main()

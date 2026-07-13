@@ -134,6 +134,10 @@ description: "Deobfuscate and unpack obfuscated JavaScript with webcrack. Use wh
   the complete canonical source registry entry (including dispatcher arguments and
   worker requirements). Catalog projections expose only those safe digests and action
   names; they omit storage `path` and never contain credential values.
+  Controllers and MCP adapters pass that pinned value back through
+  `rekit run --expected-manifest-digest SHA256`; the dispatcher recomputes it from the
+  same in-memory registry entry used to build the command and exits before execution if
+  it differs. This closes catalog changes between review and final process launch.
 - **`safety`** — `executes_input` (`"no"` | `"sandboxed"` | `"full"`) and `network`
   let a caller pick a sandbox tier. Analysis skills should be `"no"` / `network:
   "none"` where possible; use `"sandboxed"` when the skill runs a narrow slice of the
