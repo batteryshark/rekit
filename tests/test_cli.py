@@ -8,6 +8,8 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -36,15 +38,77 @@ class RekitCliTests(unittest.TestCase):
     def test_catalog_matches_registry_and_skill_directories(self) -> None:
         registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
         skill_directories = {
-            path.parent.name for path in (ROOT / "skills").glob("*/SKILL.md")
+            path.parent.relative_to(ROOT / "skills").as_posix()
+            for path in (ROOT / "skills").rglob("SKILL.md")
+        }
+        registered_directories = {
+            skill.get("path", skill_id) for skill_id, skill in registry.items()
         }
 
         listed = run_rekit("list", "--json")
         self.assertEqual(listed.returncode, 0, listed.stderr)
         listed_ids = {entry["id"] for entry in json.loads(listed.stdout)}
 
-        self.assertEqual(set(registry), skill_directories)
+        self.assertEqual(registered_directories, skill_directories)
         self.assertEqual(set(registry), listed_ids)
+
+    def test_nested_skill_path_is_discovered_and_synced(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            skills = root / "skills"
+            nested = skills / "frida" / "frida-workflow"
+            nested.mkdir(parents=True)
+            (nested / "SKILL.md").write_text("# Workflow\n", encoding="utf-8")
+            registry_file = root / "registry.json"
+            registry_file.write_text(json.dumps({
+                "frida-workflow": {
+                    "path": "frida/frida-workflow",
+                    "description": "Plan Frida instrumentation.",
+                }
+            }), encoding="utf-8")
+
+            with mock.patch.object(REKIT_MODULE, "SKILLS_DIR", skills), \
+                    mock.patch.object(REKIT_MODULE, "REGISTRY_FILE", registry_file):
+                found = REKIT_MODULE.discover()
+                self.assertEqual(found[0]["id"], "frida-workflow")
+                self.assertEqual(found[0]["_dir"], nested)
+                self.assertEqual(REKIT_MODULE._registry_drift(), ([], []))
+                self.assertEqual(
+                    REKIT_MODULE.cmd_sync_docs(SimpleNamespace(check=False)), 0
+                )
+
+            text = (nested / "SKILL.md").read_text(encoding="utf-8")
+            self.assertIn("name: frida-workflow", text)
+
+    def test_nested_skill_path_cannot_escape_skills(self) -> None:
+        directory, error = REKIT_MODULE._skill_dir(
+            "frida-workflow", {"path": "../frida-workflow"}
+        )
+        self.assertEqual(directory, ROOT / "skills" / "frida-workflow")
+        self.assertIsNotNone(error)
+
+    def test_two_ids_cannot_claim_one_skill_path(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            skills = root / "skills"
+            skills.mkdir()
+            registry_file = root / "registry.json"
+            registry_file.write_text(json.dumps({
+                "one": {"path": "group/shared/one"},
+                "two": {"path": "group/shared/two"},
+            }), encoding="utf-8")
+            # Simulate a symlink alias resolving both registry paths to one directory.
+            target = skills / "actual"
+            target.mkdir()
+            (skills / "group" / "shared").mkdir(parents=True)
+            (skills / "group" / "shared" / "one").symlink_to(target, target_is_directory=True)
+            (skills / "group" / "shared" / "two").symlink_to(target, target_is_directory=True)
+
+            with mock.patch.object(REKIT_MODULE, "SKILLS_DIR", skills), \
+                    mock.patch.object(REKIT_MODULE, "REGISTRY_FILE", registry_file):
+                found = REKIT_MODULE.discover()
+
+            self.assertTrue(all("multiple registry ids" in s["_error"] for s in found))
 
     def test_skill_frontmatter_is_synced(self) -> None:
         result = run_rekit("sync-docs", "--check")
@@ -76,11 +140,12 @@ class RekitCliTests(unittest.TestCase):
     def test_registry_script_entrypoints_exist(self) -> None:
         registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
         for skill_id, skill in registry.items():
+            skill_dir = ROOT / "skills" / skill.get("path", skill_id)
             command = skill.get("entry", {}).get("command", [])
             referenced_files = [part for part in command[1:] if "/" in part]
             for relative_path in referenced_files:
                 with self.subTest(skill=skill_id, path=relative_path):
-                    self.assertTrue((ROOT / "skills" / skill_id / relative_path).is_file())
+                    self.assertTrue((skill_dir / relative_path).is_file())
 
         self.assertTrue(
             (ROOT / "skills" / "ord-lookup" / "assets" / "ordinals.json").is_file()

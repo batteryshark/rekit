@@ -48,8 +48,9 @@ bin/rekit doctor
 | [`scripts/rekit.py`](scripts/rekit.py) | Discovery, prerequisite checks, dispatch, setup, and docs sync |
 | [`scripts/rekit_mcp.py`](scripts/rekit_mcp.py) | MCP transport over the same CLI execution path |
 | [`registry.json`](registry.json) | Machine-readable source of truth for the skill catalog |
-| [`skills/`](skills) | One directory per skill: documentation, runner, and optional payload |
+| [`skills/`](skills) | One directory per skill, optionally grouped by registry `path`: documentation, runner, and optional payload |
 | [`SKILL-CONTRACT.md`](SKILL-CONTRACT.md) | Manifest and packaging contract for contributors |
+| [`SERVER-CONTRACT.md`](SERVER-CONTRACT.md) | Storage convention for third-party MCP servers; discovery and hosting are not implemented |
 
 The execution path stays short: `bin/rekit` delegates to `scripts/rekit.py`, the
 dispatcher resolves one registry entry, checks its prerequisites and safety gate, then
