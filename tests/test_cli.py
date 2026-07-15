@@ -8,6 +8,8 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -20,6 +22,13 @@ MODULE_SPEC = importlib.util.spec_from_file_location(
 assert MODULE_SPEC and MODULE_SPEC.loader
 REKIT_MODULE = importlib.util.module_from_spec(MODULE_SPEC)
 MODULE_SPEC.loader.exec_module(REKIT_MODULE)
+
+MCP_SPEC = importlib.util.spec_from_file_location(
+    "rekit_mcp_authority", ROOT / "scripts" / "rekit_mcp.py"
+)
+assert MCP_SPEC and MCP_SPEC.loader
+MCP_MODULE = importlib.util.module_from_spec(MCP_SPEC)
+MCP_SPEC.loader.exec_module(MCP_MODULE)
 
 
 def run_rekit(*args: str) -> subprocess.CompletedProcess:
@@ -36,15 +45,77 @@ class RekitCliTests(unittest.TestCase):
     def test_catalog_matches_registry_and_skill_directories(self) -> None:
         registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
         skill_directories = {
-            path.parent.name for path in (ROOT / "skills").glob("*/SKILL.md")
+            path.parent.relative_to(ROOT / "skills").as_posix()
+            for path in (ROOT / "skills").rglob("SKILL.md")
+        }
+        registered_directories = {
+            skill.get("path", skill_id) for skill_id, skill in registry.items()
         }
 
         listed = run_rekit("list", "--json")
         self.assertEqual(listed.returncode, 0, listed.stderr)
         listed_ids = {entry["id"] for entry in json.loads(listed.stdout)}
 
-        self.assertEqual(set(registry), skill_directories)
+        self.assertEqual(registered_directories, skill_directories)
         self.assertEqual(set(registry), listed_ids)
+
+    def test_nested_skill_path_is_discovered_and_synced(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            skills = root / "skills"
+            nested = skills / "frida" / "frida-workflow"
+            nested.mkdir(parents=True)
+            (nested / "SKILL.md").write_text("# Workflow\n", encoding="utf-8")
+            registry_file = root / "registry.json"
+            registry_file.write_text(json.dumps({
+                "frida-workflow": {
+                    "path": "frida/frida-workflow",
+                    "description": "Plan Frida instrumentation.",
+                }
+            }), encoding="utf-8")
+
+            with mock.patch.object(REKIT_MODULE, "SKILLS_DIR", skills), \
+                    mock.patch.object(REKIT_MODULE, "REGISTRY_FILE", registry_file):
+                found = REKIT_MODULE.discover()
+                self.assertEqual(found[0]["id"], "frida-workflow")
+                self.assertEqual(found[0]["_dir"], nested)
+                self.assertEqual(REKIT_MODULE._registry_drift(), ([], []))
+                self.assertEqual(
+                    REKIT_MODULE.cmd_sync_docs(SimpleNamespace(check=False)), 0
+                )
+
+            text = (nested / "SKILL.md").read_text(encoding="utf-8")
+            self.assertIn("name: frida-workflow", text)
+
+    def test_nested_skill_path_cannot_escape_skills(self) -> None:
+        directory, error = REKIT_MODULE._skill_dir(
+            "frida-workflow", {"path": "../frida-workflow"}
+        )
+        self.assertEqual(directory, ROOT / "skills" / "frida-workflow")
+        self.assertIsNotNone(error)
+
+    def test_two_ids_cannot_claim_one_skill_path(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            skills = root / "skills"
+            skills.mkdir()
+            registry_file = root / "registry.json"
+            registry_file.write_text(json.dumps({
+                "one": {"path": "group/shared/one"},
+                "two": {"path": "group/shared/two"},
+            }), encoding="utf-8")
+            # Simulate a symlink alias resolving both registry paths to one directory.
+            target = skills / "actual"
+            target.mkdir()
+            (skills / "group" / "shared").mkdir(parents=True)
+            (skills / "group" / "shared" / "one").symlink_to(target, target_is_directory=True)
+            (skills / "group" / "shared" / "two").symlink_to(target, target_is_directory=True)
+
+            with mock.patch.object(REKIT_MODULE, "SKILLS_DIR", skills), \
+                    mock.patch.object(REKIT_MODULE, "REGISTRY_FILE", registry_file):
+                found = REKIT_MODULE.discover()
+
+            self.assertTrue(all("multiple registry ids" in s["_error"] for s in found))
 
     def test_skill_frontmatter_is_synced(self) -> None:
         result = run_rekit("sync-docs", "--check")
@@ -76,11 +147,12 @@ class RekitCliTests(unittest.TestCase):
     def test_registry_script_entrypoints_exist(self) -> None:
         registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
         for skill_id, skill in registry.items():
+            skill_dir = ROOT / "skills" / skill.get("path", skill_id)
             command = skill.get("entry", {}).get("command", [])
             referenced_files = [part for part in command[1:] if "/" in part]
             for relative_path in referenced_files:
                 with self.subTest(skill=skill_id, path=relative_path):
-                    self.assertTrue((ROOT / "skills" / skill_id / relative_path).is_file())
+                    self.assertTrue((skill_dir / relative_path).is_file())
 
         self.assertTrue(
             (ROOT / "skills" / "ord-lookup" / "assets" / "ordinals.json").is_file()
@@ -107,6 +179,7 @@ class RekitCliTests(unittest.TestCase):
             skill = {
                 "id": "fixture-skill",
                 "_dir": skill_dir,
+                "safety": {"executes_input": "no", "network": "none", "tier": 0},
                 "prerequisites": [
                     {"tool": "fixture runtime", "check": ["python3", "scripts/check.py"]}
                 ],
@@ -124,6 +197,7 @@ class RekitCliTests(unittest.TestCase):
             skill = {
                 "id": "fixture-skill",
                 "_dir": Path(directory),
+                "safety": {"executes_input": "no", "network": "none", "tier": 0},
                 "prerequisites": [],
                 "payload": {"vendored": "scripts/site"},
             }
@@ -145,6 +219,104 @@ class RekitCliTests(unittest.TestCase):
         output = json.loads(result.stdout)
         self.assertFalse(output["ok"])
         self.assertEqual(output["error"], "dynamic skill requires consent")
+
+    def test_all_catalog_entries_have_valid_least_authority_contracts(self) -> None:
+        registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
+        self.assertEqual(len(registry), 45)
+        for skill_id, entry in registry.items():
+            with self.subTest(skill=skill_id):
+                effective, error = REKIT_MODULE.effective_manifest({"id": skill_id, **entry})
+                self.assertIsNone(error)
+                self.assertIsNotNone(effective)
+                self.assertFalse(effective["authority"]["legacy"])
+                self.assertRegex(effective["digest"], r"^[0-9a-f]{64}$")
+        self.assertEqual(
+            registry["gitops"]["authority"],
+            {"version": 1, "actions": [
+                "read_local_target", "modify_target", "network_access", "destructive",
+            ], "credential_use": True},
+        )
+        self.assertTrue(registry["ios-dump"]["authority"]["credential_use"])
+
+    def test_authority_validation_is_fail_closed_and_legacy_is_conservative(self) -> None:
+        static = {"id": "legacy", "version": "1", "safety": {
+            "tier": 0, "executes_input": "no", "network": "none",
+        }}
+        effective, error = REKIT_MODULE.effective_manifest(static)
+        self.assertIsNone(error)
+        self.assertTrue(effective["authority"]["legacy"])
+        self.assertEqual(effective["authority"]["actions"], ["read_local_target"])
+
+        for unsafe in (
+            {**static, "safety": {"tier": 1, "executes_input": "full", "network": "none"}},
+            {**static, "safety": {"tier": 1, "executes_input": "no", "network": "optional"}},
+            {**static, "authority": {"version": 1,
+                "actions": ["read_local_target", "network_access"], "credential_use": False}},
+        ):
+            with self.subTest(skill=unsafe):
+                effective, error = REKIT_MODULE.effective_manifest(unsafe)
+                self.assertIsNone(effective)
+                self.assertIsNotNone(error)
+
+    def test_public_catalog_projection_has_authorities_digest_and_no_source_path(self) -> None:
+        listed = run_rekit("list", "--json")
+        self.assertEqual(listed.returncode, 0, listed.stderr)
+        entries = json.loads(listed.stdout)
+        self.assertTrue(entries)
+        for entry in entries:
+            self.assertNotIn("path", entry)
+            self.assertNotIn("authorityError", entry)
+            self.assertEqual(entry["effectiveManifest"]["toolId"], entry["id"])
+            self.assertRegex(entry["effectiveManifest"]["digest"], r"^[0-9a-f]{64}$")
+            self.assertRegex(entry["effectiveManifest"]["sourceManifestDigest"],
+                             r"^[0-9a-f]{64}$")
+
+    def test_effective_digest_binds_dispatcher_arguments_and_mcp_fails_closed(self) -> None:
+        registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
+        skill_id, entry = next(iter(registry.items()))
+        original, error = REKIT_MODULE.effective_manifest({"id": skill_id, **entry})
+        self.assertIsNone(error)
+        changed_entry = json.loads(json.dumps(entry))
+        changed_entry.setdefault("entry", {}).setdefault("args", []).append({
+            "name": "--authority-drift-fixture", "type": "flag", "desc": "fixture",
+        })
+        changed, error = REKIT_MODULE.effective_manifest({"id": skill_id, **changed_entry})
+        self.assertIsNone(error)
+        self.assertNotEqual(original["sourceManifestDigest"],
+                            changed["sourceManifestDigest"])
+        self.assertNotEqual(original["digest"], changed["digest"])
+
+        invalid = {"id": "invalid", "entry": {"args": []},
+                   "authorityError": "malformed", "effectiveManifest": None}
+        self.assertIsNone(MCP_MODULE.skill_to_tool(invalid, "", {"ready": True}, False))
+
+    def test_run_fails_before_dispatch_when_expected_manifest_drifted(self) -> None:
+        registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
+        skill_id, entry = next(iter(registry.items()))
+        original, error = REKIT_MODULE.effective_manifest({"id": skill_id, **entry})
+        self.assertIsNone(error)
+        changed = json.loads(json.dumps(entry))
+        changed.setdefault("entry", {}).setdefault("args", []).append({
+            "name": "--drift", "type": "flag",
+        })
+        args = SimpleNamespace(
+            id=skill_id, rest=[], allow_dynamic=False,
+            expected_manifest_digest=original["digest"],
+        )
+        with mock.patch.object(REKIT_MODULE, "_get", return_value={
+            "id": skill_id, "_dir": ROOT / "skills", **changed,
+        }), mock.patch.object(REKIT_MODULE.subprocess, "run") as execute:
+            self.assertEqual(REKIT_MODULE.cmd_run(args), 5)
+            execute.assert_not_called()
+
+    def test_mcp_passes_its_pinned_digest_to_dispatcher(self) -> None:
+        with mock.patch.object(MCP_MODULE.subprocess, "run") as execute:
+            execute.return_value = SimpleNamespace(returncode=0, stdout="ok", stderr="")
+            MCP_MODULE.run_skill("rekit", "scan", [], False, 10, "a" * 64)
+        self.assertEqual(execute.call_args.args[0][:3], [
+            "rekit", "run", "--expected-manifest-digest",
+        ])
+        self.assertEqual(execute.call_args.args[0][3], "a" * 64)
 
 
 if __name__ == "__main__":

@@ -62,8 +62,8 @@ class EmulationSessionUnitTests(unittest.TestCase):
         self.assertIn("run create first", result["error"])
 
     def test_rekit_mcp_exports_stateful_actions_and_reconstructs_cli_call(self) -> None:
-        registry = json.loads((ROOT / "registry.json").read_text(encoding="utf-8"))
-        skill = {"id": "emulation-session", **registry["emulation-session"]}
+        skill = next(item for item in MCP.load_catalog()
+                     if item["id"] == "emulation-session")
         tool = MCP.skill_to_tool(skill, "", {"ready": True}, False)
         self.assertIn("restore-snapshot", tool["inputSchema"]["properties"]["action"]["enum"])
         call = MCP.build_call_args(

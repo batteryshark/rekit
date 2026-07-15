@@ -2,8 +2,8 @@
 """rekit — discover, doctor, and run self-contained agent skills.
 
 Pure stdlib. Skill manifests live in ONE central registry, ../registry.json, keyed by
-skill id; each skills/<id>/ dir holds the SKILL.md doc (name + description frontmatter)
-+ the runner. Discovery = read the registry and pair each entry with its directory.
+skill id; each entry may set ``path`` to place its skill below a grouping directory
+(default: the id). Discovery pairs every entry with that directory below ``skills/``.
 See ../SKILL-CONTRACT.md for the manifest shape.
 
     rekit list [--json]
@@ -20,6 +20,7 @@ See ../SKILL-CONTRACT.md for the manifest shape.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import platform
@@ -34,6 +35,106 @@ REGISTRY_FILE = ROOT / "registry.json"
 REQUIREMENTS_FILE = ROOT / "requirements.json"
 _VER_RE = re.compile(r"(\d+(?:\.\d+)*)")
 TIERS = ("base", "build", "recommended")
+AUTHORITY_VERSION = 1
+ACTION_AUTHORITIES = (
+    "read_local_target", "execute_untrusted", "modify_target", "network_access",
+    "register_account", "enroll_challenge", "create_credential", "submit_challenge",
+    "persistence", "destructive", "third_party_message", "expand_scope",
+)
+HIGH_IMPACT_AUTHORITIES = frozenset(ACTION_AUTHORITIES[1:])
+EXTERNAL_NETWORK_MODES = frozenset({"optional", "target-controlled", "capture", "device-ssh"})
+
+
+def effective_authority(skill: dict) -> tuple[dict | None, str | None]:
+    """Validate and normalize semantic authority independently from safety/consent.
+
+    Legacy compatibility is deliberately narrow: only an explicit static, offline
+    manifest receives read-only target authority. Anything riskier is unavailable
+    until it is migrated and reviewed.
+    """
+    raw = skill.get("authority")
+    safety = skill.get("safety") or {}
+    executes = safety.get("executes_input")
+    network = safety.get("network")
+    if raw is None:
+        if executes == "no" and network == "none":
+            return {"version": AUTHORITY_VERSION, "actions": ["read_local_target"],
+                    "credential_use": False, "legacy": True}, None
+        return None, "risky legacy manifest requires an explicit authority declaration"
+    if not isinstance(raw, dict) or set(raw) != {"version", "actions", "credential_use"}:
+        return None, "authority must contain exactly version, actions, and credential_use"
+    if raw.get("version") != AUTHORITY_VERSION:
+        return None, f"unsupported authority version {raw.get('version')!r}"
+    actions = raw.get("actions")
+    credential_use = raw.get("credential_use")
+    if not isinstance(actions, list) or not actions or any(not isinstance(a, str) for a in actions):
+        return None, "authority.actions must be a non-empty list of exact action names"
+    if isinstance(credential_use, bool) is False:
+        return None, "authority.credential_use must be boolean"
+    unknown = sorted(set(actions) - set(ACTION_AUTHORITIES))
+    if unknown:
+        return None, f"unknown action authorities: {', '.join(unknown)}"
+    if len(actions) != len(set(actions)):
+        return None, "authority.actions must not contain duplicates"
+    normalized = [action for action in ACTION_AUTHORITIES if action in actions]
+    if actions != normalized:
+        return None, "authority.actions must use canonical least-to-most-impact order"
+    if executes in {"sandboxed", "full"} and "execute_untrusted" not in actions:
+        return None, "input execution requires execute_untrusted authority"
+    if executes == "no" and "execute_untrusted" in actions:
+        return None, "execute_untrusted contradicts safety.executes_input=no"
+    if network in EXTERNAL_NETWORK_MODES and "network_access" not in actions:
+        return None, f"external safety.network={network!r} requires network_access authority"
+    if network in {None, "none", "emulated"} and "network_access" in actions:
+        return None, f"network_access contradicts safety.network={network!r}"
+    return {"version": AUTHORITY_VERSION, "actions": normalized,
+            "credential_use": credential_use, "legacy": False}, None
+
+
+def effective_manifest(skill: dict) -> tuple[dict | None, str | None]:
+    authority, error = effective_authority(skill)
+    if error:
+        return None, error
+    safety = skill.get("safety") or {}
+    source_manifest = {
+        key: item for key, item in skill.items()
+        if not key.startswith("_") and key not in {
+            "id", "effectiveManifest", "authorityError",
+        }
+    }
+    source_raw = json.dumps(
+        {"toolId": skill.get("id"), "manifest": source_manifest},
+        sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+    )
+    value = {
+        "schemaVersion": AUTHORITY_VERSION,
+        "toolId": skill.get("id"),
+        "toolVersion": skill.get("version"),
+        "sourceManifestDigest": hashlib.sha256(source_raw.encode("utf-8")).hexdigest(),
+        "safety": {
+            "tier": safety.get("tier"),
+            "executesInput": safety.get("executes_input"),
+            "network": safety.get("network"),
+        },
+        "authority": {
+            "version": authority["version"], "actions": authority["actions"],
+            "credentialUse": authority["credential_use"], "legacy": authority["legacy"],
+        },
+    }
+    raw = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    value["digest"] = hashlib.sha256(raw.encode("utf-8")).hexdigest()
+    return value, None
+
+
+def public_skill(skill: dict) -> dict:
+    """Safe federated projection: no catalog source path or credential values."""
+    value = {key: item for key, item in skill.items()
+             if not key.startswith("_") and key != "path"}
+    effective, error = effective_manifest(skill)
+    value["effectiveManifest"] = effective
+    if error:
+        value["authorityError"] = error
+    return value
 
 
 def _load_registry() -> dict:
@@ -50,19 +151,54 @@ def _load_registry() -> dict:
     return data
 
 
+def _skill_dir(sid: str, entry: dict) -> tuple[Path, str | None]:
+    """Resolve an entry's optional path safely beneath ``skills/``."""
+    raw = entry.get("path", sid)
+    if not isinstance(raw, str) or not raw or "\\" in raw:
+        return SKILLS_DIR / sid, "path must be a non-empty, forward-slash relative path"
+    segments = raw.split("/")
+    if any(not part or part in (".", "..") for part in segments):
+        return SKILLS_DIR / sid, "path must stay beneath skills/ and contain no dot segments"
+    rel = Path(raw)
+    if rel.is_absolute():
+        return SKILLS_DIR / sid, "path must stay beneath skills/ and contain no dot segments"
+    if rel.name != sid:
+        return SKILLS_DIR / sid, f"path must end in the skill id '{sid}'"
+    root = SKILLS_DIR.resolve()
+    resolved = (SKILLS_DIR / rel).resolve()
+    try:
+        resolved.relative_to(root)
+    except ValueError:
+        return SKILLS_DIR / sid, "path resolves outside skills/"
+    return SKILLS_DIR / rel, None
+
+
 def discover() -> list[dict]:
-    """Read the central registry and pair each entry with its skills/<id>/ dir. A
+    """Read the central registry and pair each entry with its configured skill dir. A
     registry entry whose directory is missing is surfaced with an `_error` (honest
     degradation), never silently dropped."""
     skills = []
     registry = _load_registry()
+    owners: dict[Path, list[str]] = {}
+    resolved: dict[str, tuple[Path, str | None]] = {}
+    for sid, entry in registry.items():
+        directory, error = _skill_dir(sid, entry)
+        resolved[sid] = (directory, error)
+        if not error:
+            owners.setdefault(directory.resolve(), []).append(sid)
     for sid in sorted(registry):
-        d = SKILLS_DIR / sid
         data = dict(registry[sid])
+        d, path_error = resolved[sid]
         data["id"] = sid
         data["_dir"] = d
-        if not d.is_dir():
-            data["_error"] = f"registry entry '{sid}' has no directory (skills/{sid}/)"
+        if path_error:
+            data["_error"] = f"registry entry '{sid}' has invalid path: {path_error}"
+        elif len(owners[d.resolve()]) > 1:
+            claimed = ", ".join(sorted(owners[d.resolve()]))
+            data["_error"] = f"skill path is claimed by multiple registry ids: {claimed}"
+        elif not d.is_dir():
+            rel = d.relative_to(SKILLS_DIR)
+            data["_error"] = f"registry entry '{sid}' has no directory (skills/{rel}/)"
         skills.append(data)
     return skills
 
@@ -72,9 +208,19 @@ def _registry_drift() -> tuple[list[str], list[str]]:
     the registry, and registry ids whose directory is missing. The trade-off of a
     central registry — surfaced loudly by `doctor` so drift can't hide."""
     registry = _load_registry()
-    dirs = {p.name for p in SKILLS_DIR.iterdir()
-            if p.is_dir() and (p / "SKILL.md").is_file()} if SKILLS_DIR.is_dir() else set()
-    return sorted(dirs - set(registry)), sorted(set(registry) - dirs)
+    actual = {
+        p.parent.relative_to(SKILLS_DIR).as_posix()
+        for p in SKILLS_DIR.rglob("SKILL.md")
+    } if SKILLS_DIR.is_dir() else set()
+    expected = {}
+    missing = []
+    for skill in discover():
+        sid, directory = skill["id"], skill["_dir"]
+        if skill.get("_error") or not (directory / "SKILL.md").is_file():
+            missing.append(sid)
+            continue
+        expected[directory.relative_to(SKILLS_DIR).as_posix()] = sid
+    return sorted(actual - set(expected)), sorted(missing)
 
 
 def _get(skill_id: str) -> dict:
@@ -152,9 +298,10 @@ def doctor_skill(skill: dict) -> dict:
                 "present": False,
                 "reason": "missing " + ", ".join(missing),
             })
-    error = skill.get("_error")
+    effective, authority_error = effective_manifest(skill)
+    error = skill.get("_error") or authority_error
     return {"id": skill.get("id"), "ready": all(p["present"] for p in prereqs) and not error,
-            "prerequisites": prereqs, "error": error}
+            "prerequisites": prereqs, "error": error, "effectiveManifest": effective}
 
 
 # --- rekit's own requirements (base/build/recommended) --------------------
@@ -214,8 +361,7 @@ def _marker(skill: dict) -> str:
 def cmd_list(args) -> int:
     skills = discover()
     if args.json:
-        print(json.dumps([{k: v for k, v in s.items() if not k.startswith("_")}
-                          for s in skills], indent=2))
+        print(json.dumps([public_skill(s) for s in skills], indent=2))
         return 0
     if not skills:
         print("(no skills found under skills/)")
@@ -294,9 +440,11 @@ def cmd_doctor(args) -> int:
         if orphans or missing:
             print("\nregistry drift:")
             for sid in orphans:
-                print(f"  ! skills/{sid}/ has a SKILL.md but no registry.json entry (unregistered)")
+                print(f"  ! skills/{sid}/ has a SKILL.md but no registry.json path (unregistered)")
             for sid in missing:
-                print(f"  ! registry.json lists '{sid}' but skills/{sid}/ is missing")
+                entry = _load_registry().get(sid, {})
+                path = entry.get("path", sid)
+                print(f"  ! registry.json lists '{sid}' but skills/{path}/ is missing or invalid")
             print("  run `rekit sync-docs` after fixing registry.json to re-sync SKILL.md frontmatter.")
         print("Tip: `rekit setup [--tier all]` prints install commands for missing base/build/recommended tools.")
     return 0 if all_ready else 1
@@ -314,6 +462,18 @@ def cmd_info(args) -> int:
 
 def cmd_run(args) -> int:
     s = _get(args.id)
+    effective, authority_error = effective_manifest(s)
+    expected_digest = getattr(args, "expected_manifest_digest", None)
+    if authority_error or effective is None or (
+        expected_digest is not None and effective["digest"] != expected_digest
+    ):
+        print(json.dumps({
+            "ok": False,
+            "error": "effective manifest digest mismatch",
+            "expectedManifestDigest": expected_digest,
+            "actualManifestDigest": effective.get("digest") if effective else None,
+        }), file=sys.stderr)
+        return 5
     report = doctor_skill(s)
     if not report["ready"]:
         missing = [p for p in report["prerequisites"] if not p["present"]]
@@ -544,8 +704,16 @@ def cmd_sync_docs(args) -> int:
     registry — registry.json is the source of truth, frontmatter is a synced projection."""
     registry = _load_registry()
     changed = []
+    invalid = []
+    by_id = {skill["id"]: skill for skill in discover()}
     for sid in sorted(registry):
-        md = SKILLS_DIR / sid / "SKILL.md"
+        skill = by_id[sid]
+        directory = skill["_dir"]
+        error = skill.get("_error", "")
+        if "invalid path" in error or "multiple registry ids" in error:
+            invalid.append(sid)
+            continue
+        md = directory / "SKILL.md"
         if not md.is_file():
             continue
         text = md.read_text(encoding="utf-8")
@@ -560,6 +728,9 @@ def cmd_sync_docs(args) -> int:
             changed.append(sid)
             if not args.check:
                 md.write_text(new_text, encoding="utf-8")
+    if invalid:
+        print("invalid registry path(s): " + ", ".join(invalid))
+        return 1
     if args.check:
         if changed:
             print("out of sync with registry.json: " + ", ".join(changed))
@@ -630,6 +801,8 @@ def build_parser() -> argparse.ArgumentParser:
     run = sub.add_parser("run", help="run a skill (checks prereqs first)")
     run.add_argument("--allow-dynamic", action="store_true",
                      help="consent to run a DYNAMIC skill (one that EXECUTES the target)")
+    run.add_argument("--expected-manifest-digest", metavar="SHA256",
+                     help="fail closed unless the dispatch entry has this effective digest")
     run.add_argument("id")
     run.add_argument("rest", nargs=argparse.REMAINDER,
                      help="arguments passed through to the skill")
