@@ -15,7 +15,38 @@ permissions:
   id-token: write
 
 jobs:
+  verify:
+    if: github.event_name == 'pull_request'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            platform: linux/amd64
+            cache-scope: native-lift-amd64
+          - runner: ubuntu-24.04-arm
+            platform: linux/arm64
+            cache-scope: native-lift-arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: containers/native-lift/Dockerfile
+          platforms: ${{ matrix.platform }}
+          push: false
+          tags: ghcr.io/${{ github.repository_owner }}/rekit-native-lift:pr-check
+          provenance: mode=max
+          sbom: true
+          cache-from: type=gha,scope=${{ matrix.cache-scope }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.cache-scope }}
+
   publish:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
