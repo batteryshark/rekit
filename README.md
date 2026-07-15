@@ -109,6 +109,7 @@ Grouped by what they do; `rekit list` and `rekit caps` are the authoritative cat
 | `jvm-decompile` | `.apk`/`.dex`/`.jar`/`.class` → Java (jadx) | jadx (BYO) |
 | `dotnet-decompile` | .NET IL → C# (ilspycmd) | ilspycmd (BYO) |
 | `native-disassemble` | ELF/PE/Mach-O → assembly listing (objdump; rizin/r2 fallback) | llvm-objdump/objdump/rizin/r2 (BYO) |
+| `native-lift` | bounded raw x86/amd64/aarch64 region → LLVM IR/bitcode (pinned Remill container) | Docker + installed image |
 | `native-decompile` | ELF/PE/Mach-O → C (rizin `pdg`, no JVM) | rizin (BYO) |
 | `ghidra-decompile` | ELF/PE/Mach-O → C (full Ghidra headless) | analyzeHeadless (BYO) |
 
@@ -170,6 +171,7 @@ Grouped by what they do; `rekit list` and `rekit caps` are the authoritative cat
 - **Python:** `pyinstaller-extract` → `pyc-decompile` → `py-covert-scan`
 - **Binary:** `bin-triage` → `pe`/`elf`/`macho`/`dotnet-analyze` → the matching decompiler
 - **Construct → analyze:** `asm-assemble` → `shellcode-stub` → `exec-observe` (native) or `qiling-emulate` (cross-arch/cross-OS); `cc-build` → any decompiler (or `--emit asm|ir`)
+- **Instruction semantics:** extract a bounded function or stub → `native-disassemble` for assembly → `native-lift` for LLVM IR; use decompilers for whole executable containers
 - **Protection research:** `protection-survey` → inspect flagged sites → build a controlled fixture with `cc-build` or `minimal-executable` → analyze the artifact
 - **Windows API behavior:** `frida-trace` for quick globs; `frida-api-trace` when local signatures and typed arguments matter
 - **Android runtime discovery:** `jvm-decompile` → `frida-android-instrument` for loaded classes/method calls → `dex-dump` when runtime-loaded DEX is absent on disk

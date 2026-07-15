@@ -157,7 +157,10 @@ description: "Deobfuscate and unpack obfuscated JavaScript with webcrack. Use wh
   are options; bare names are positionals. For `enum` args, declare the allowed
   values in a machine-readable **`choices`** array (e.g. `["text", "json"]`) so
   consumers like `rekit mcp` emit a real JSON Schema `enum` instead of scraping
-  the human `desc`. `required` only applies to positionals; options are optional.
+  the human `desc`. `required` always controls the MCP input schema and call
+  validation. Required positionals are emitted in order; a required option is still
+  written as `--name value` and its runner must enforce the same rule for direct CLI
+  calls.
 - **`entry.result`** — the runner SHOULD print a single JSON object to stdout as its
   machine result (`{"ok": true, ...}` / `{"ok": false, "error": "..."}`), so callers
   don't have to scrape logs.
