@@ -167,7 +167,9 @@ def skill_to_tool(skill: dict, prefix: str, status: dict | None,
                   allow_dynamic: bool) -> dict | None:
     """Map one skill to an MCP tool definition, or None to hide it."""
     sid = skill.get("id")
-    if not sid:
+    effective = skill.get("effectiveManifest")
+    if not sid or skill.get("authorityError") or not isinstance(effective, dict) \
+            or not effective.get("digest"):
         return None
     entry = skill.get("entry") or {}
     args = entry.get("args") or []
@@ -211,6 +213,7 @@ def skill_to_tool(skill: dict, prefix: str, status: dict | None,
         # rekit-private metadata so tools/call can find the skill by id
         "_rekit_skill_id": sid,
         "_rekit_executes_input": executes,
+        "_rekit_manifest_digest": effective["digest"],
     }
 
 
@@ -267,8 +270,10 @@ def build_call_args(skill: dict, arguments: dict) -> list[str]:
 # --- execute a tool call -----------------------------------------------------
 
 def run_skill(rekit_bin: str, skill_id: str, call_args: list[str],
-              allow_dynamic: bool, timeout: int) -> dict:
-    argv = [rekit_bin, "run"]
+              allow_dynamic: bool, timeout: int,
+              expected_manifest_digest: str) -> dict:
+    argv = [rekit_bin, "run", "--expected-manifest-digest",
+            expected_manifest_digest]
     if allow_dynamic:
         argv.append("--allow-dynamic")
     argv += [skill_id, *call_args]
@@ -359,13 +364,21 @@ class Server:
         skill = self._skill_by_tool(name)
         if not skill:
             raise UserError(f"skill for tool '{name}' not found in catalog")
+        effective = skill.get("effectiveManifest")
+        if skill.get("authorityError") or not isinstance(effective, dict) \
+                or effective.get("digest") != tool.get("_rekit_manifest_digest"):
+            return {"isError": True, "content": [{"type": "text", "text":
+                    "rekit: manifest authority is invalid or changed; refresh the "
+                    "catalog and review the effective contract before dispatch"}]}
         try:
             call_args = build_call_args(skill, arguments)
         except UserError as e:
             return {"isError": True,
                     "content": [{"type": "text", "text": f"rekit: {e}"}]}
-        return run_skill(self.rekit, tool["_rekit_skill_id"], call_args,
-                         self.allow_dynamic, self.timeout)
+        return run_skill(
+            self.rekit, tool["_rekit_skill_id"], call_args,
+            self.allow_dynamic, self.timeout, tool["_rekit_manifest_digest"],
+        )
 
     # -- dispatch ------------------------------------------------------------
 

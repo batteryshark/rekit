@@ -1,10 +1,11 @@
 # Skill contract
 
-A skill is a directory under `skills/<id>/`. rekit follows the standard Agent Skills
-layout and adds one optional directory for prebuilt native executables:
+A skill is a directory under `skills/`, directly at `skills/<id>/` by default or at
+the optional registry path `skills/<group>/.../<id>/`. Rekit follows the standard
+Agent Skills layout and adds one optional directory for prebuilt native executables:
 
 ```
-skills/<id>/
+skills/[<group>/.../]<id>/
   SKILL.md       trigger and workflow                                      (required)
   scripts/       executable source and build scripts                       (optional)
   references/    detailed documentation loaded on demand                   (optional)
@@ -28,7 +29,8 @@ and skill-local `bin/` directories are rekit extensions permitted by the open fo
 neither changes how a compatible agent discovers and loads `SKILL.md`.
 
 The dispatcher (`bin/rekit`) is **pure stdlib**: it reads `registry.json` (plain JSON)
-and pairs each entry with its `skills/<id>/` directory. Registration is a registry
+and pairs each entry with `skills/<id>/`, or with `skills/<path>/` when the entry has
+an optional `path`. Registration is a registry
 entry — `rekit doctor` flags any skill dir with no entry (and any entry with no dir) so
 the two can't silently drift.
 
@@ -40,11 +42,17 @@ directory name; the value is its manifest:
 ```json
 {
   "js-deobfuscate": {
+    "path": "javascript/js-deobfuscate",
     "name": "JavaScript Deobfuscator",
     "description": "One line: what it does and, crucially, whether it executes the input.",
     "version": "0.1.0",
     "capabilities": ["deobfuscate-js", "unpack-js-bundle"],
     "kind": "analyze",
+    "authority": {
+      "version": 1,
+      "actions": ["read_local_target"],
+      "credential_use": false
+    },
     "prerequisites": [
       {"tool": "node", "min_version": "18", "check": ["node", "--version"],
        "install_hint": "Install Node.js >= 18 (https://nodejs.org)"}
@@ -66,6 +74,9 @@ directory name; the value is its manifest:
 
 The dispatcher builds each skill dict as: `id` from the key, everything else from the
 entry (`name`, `description`, `capabilities`, `entry`, …), plus the resolved `_dir`.
+`path` is a forward-slash relative path beneath `skills/`; it must end in the skill id
+and may not contain absolute or dot segments. It only controls storage—catalog, CLI,
+and MCP identities remain the flat registry id.
 
 ## `SKILL.md` frontmatter
 
@@ -100,6 +111,33 @@ description: "Deobfuscate and unpack obfuscated JavaScript with webcrack. Use wh
 - **`prerequisites`** — external tools the skill needs on `PATH`. `check` is run
   verbatim; the first `\d+(\.\d+)*` in its output is compared to `min_version`.
   Missing prerequisites and declared payload files make a skill unavailable.
+- **`authority`** — the versioned semantic ceiling for what the skill may do to the
+  authorized target or external systems. Version 1 uses exact action strings in this
+  canonical least-to-most-impact order: `read_local_target`, `execute_untrusted`,
+  `modify_target`, `network_access`, `register_account`, `enroll_challenge`,
+  `create_credential`, `submit_challenge`, `persistence`, `destructive`,
+  `third_party_message`, `expand_scope`. `credential_use` is a separate required
+  boolean because using an existing opaque credential is not itself an action and does
+  not grant account or credential creation. In version 1, `true` is a mandatory
+  invocation floor: every dispatch must carry an exact opaque account reference and an
+  approved credential-use scope. `false` forbids runtime credential/account intent
+  unless the declared action itself requires exact account intent. Optional credential
+  modes require separate manifest variants (or a future schema version), never a
+  model-selected widening. Declare only what the dispatcher can
+  actually exercise. Sandboxed/full input execution requires `execute_untrusted`;
+  external network modes require `network_access`; contradictions fail `doctor`.
+  Authority is target/action authorization metadata, not a safety tier, isolation
+  promise, or operator consent. A low tier or `--allow-dynamic` can never widen it.
+  Legacy manifests are compatible only when explicitly static and offline, where Rekit
+  derives `read_local_target` and marks the effective contract `legacy`; risky legacy
+  entries are unavailable pending review. The effective digest binds a second digest of
+  the complete canonical source registry entry (including dispatcher arguments and
+  worker requirements). Catalog projections expose only those safe digests and action
+  names; they omit storage `path` and never contain credential values.
+  Controllers and MCP adapters pass that pinned value back through
+  `rekit run --expected-manifest-digest SHA256`; the dispatcher recomputes it from the
+  same in-memory registry entry used to build the command and exits before execution if
+  it differs. This closes catalog changes between review and final process launch.
 - **`safety`** — `executes_input` (`"no"` | `"sandboxed"` | `"full"`) and `network`
   let a caller pick a sandbox tier. Analysis skills should be `"no"` / `network:
   "none"` where possible; use `"sandboxed"` when the skill runs a narrow slice of the
@@ -133,7 +171,7 @@ Agent-agnostic, three equivalent ways:
 bin/rekit run <id> <arg1> <arg2> ...
 
 # direct (a caller that already knows the entry)
-node skills/<id>/scripts/<payload> <arg1> <arg2> ...
+node skills/[<group>/.../]<id>/scripts/<payload> <arg1> <arg2> ...
 
 # programmatic (Python): read the skill's registry.json entry, check prereqs, exec entry.command + args
 ```
@@ -162,7 +200,8 @@ repository's redistribution boundary.
 
 1. Add a `"<id>": { … }` entry to `registry.json` (name, description, capabilities,
    prerequisites, safety, entry — see the shape above).
-2. `mkdir skills/<id>` with a `SKILL.md` (Markdown body) and put the runner in
+2. `mkdir skills/<id>` (or `skills/<group>/<id>` plus a matching registry `path`) with
+   a `SKILL.md` (Markdown body) and put the runner in
    `scripts/` (plus a `scripts/build.sh` if it installs local deps). Put prebuilt native
    executables in `bin/`; put data, templates, and rule packs in `assets/`.
 3. `bin/rekit sync-docs` to write the `name` + `description` frontmatter into SKILL.md
