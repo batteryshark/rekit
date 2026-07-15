@@ -257,7 +257,12 @@ def check_prereq(pre: dict, cwd: Path | None = None) -> dict:
     version = _parse_version(out)
     result["version"] = ".".join(map(str, version)) if version else None
     if proc.returncode != 0:
-        return {**result, "present": False, "reason": f"check exited {proc.returncode}"}
+        lines = [line.strip() for line in out.splitlines() if line.strip()]
+        detail = lines[-1][:500] if lines else None
+        reason = f"check exited {proc.returncode}"
+        if detail:
+            reason += f": {detail}"
+        return {**result, "present": False, "reason": reason}
     if pre.get("min_version") and version and not _cmp_version(version, pre["min_version"]):
         return {**result, "present": False,
                 "reason": f"version {result['version']} < required {pre['min_version']}"}

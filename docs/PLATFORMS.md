@@ -32,6 +32,14 @@ exit code (the exit code still reflects per-skill readiness, as before).
 | **Linux** (x64 / arm64, glibc or musl) | primary |
 | **Windows** | via **WSL2** only. Most dynamic skills need Unix tracers (`strace`/`dtruss`, `tcpdump`, `frida-trace`) anyway. Native-Windows-only targets are a non-goal. `rekit setup --platform windows` prints a "run inside WSL2" banner and emits the linux (apt) commands. |
 
+`native-lift` is the one container-backed catalog entry. It supports Docker's
+`linux/amd64` and `linux/arm64` platforms, including Docker Desktop on Intel and Apple
+Silicon macOS. Docker is a per-skill prerequisite, not a Rekit base requirement.
+`rekit install native-lift` explicitly pulls its immutable image; subsequent analysis
+runs require the image to be present and run with networking disabled. An unavailable
+Docker daemon, unsupported host platform, absent digest, missing image, or failed image
+health check leaves only that skill unavailable.
+
 Within Linux the install commands default to **apt** (Debian/Ubuntu). On Fedora/RHEL use
 `dnf`, on Arch use `pacman` — same package names in most cases. `uv`'s installer
 (`curl -LsSf https://astral.sh/uv/install.sh | sh`) is distro-agnostic.

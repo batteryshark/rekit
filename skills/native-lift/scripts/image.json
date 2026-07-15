@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "repository": "ghcr.io/batteryshark/rekit-native-lift",
+  "tag": "remill-6.0.1-llvm-21",
+  "digest": "sha256:1d42e0b3f89f4146e26d51909721414a561b6188d1dd9d6eef25080aa676e952",
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ],
+  "remillVersion": "v6.0.1",
+  "remillCommit": "0e324aee8c67a63ec759ef379dcfafa0b3cb1448",
+  "llvmVersion": "21",
+  "llvmPackageVersion": "1:21.1.8~++20251221032922+2078da43e25a-1~exp1~20251221153059.70",
+  "maxInputBytes": 65536
+}

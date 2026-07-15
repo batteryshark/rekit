@@ -178,7 +178,7 @@ def skill_to_tool(skill: dict, prefix: str, status: dict | None,
     for a in args:
         pname = _prop_name(a["name"])
         properties[pname] = _arg_schema(a)
-        if a.get("required") and not a["name"].startswith("-"):
+        if a.get("required"):
             required.append(pname)
 
     desc = _marker(skill) + (skill.get("description") or "")
@@ -254,6 +254,8 @@ def build_call_args(skill: dict, arguments: dict) -> list[str]:
             if val:  # truthy -> bare switch
                 out.append(a["name"])
             continue
+        if val is None and a.get("required"):
+            raise UserError(f"missing required argument '{a['name']}'")
         if val is not None:
             out.append(a["name"])
             out.append(str(val))
