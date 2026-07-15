@@ -44,15 +44,24 @@ def fake_docker(directory: Path) -> tuple[Path, Path]:
             args = sys.argv[1:]
             pathlib.Path(os.environ["FAKE_DOCKER_LOG"]).open("a").write(" ".join(args) + "\\n")
             if args and args[0] == "version":
+                if os.environ.get("FAKE_DOCKER_DAEMON_DOWN"):
+                    print("Cannot connect to the Docker daemon", file=sys.stderr)
+                    raise SystemExit(1)
                 print("29.2.1")
                 raise SystemExit(0)
             if args and args[0] == "info":
                 print(os.environ.get("FAKE_DOCKER_PLATFORM", "linux/aarch64"))
                 raise SystemExit(0)
             if args[:2] == ["image", "inspect"]:
+                if os.environ.get("FAKE_DOCKER_MISSING_IMAGE"):
+                    print("No such image", file=sys.stderr)
+                    raise SystemExit(1)
                 print("[]")
                 raise SystemExit(0)
             if args and args[0] == "run" and "--version" in args:
+                if os.environ.get("FAKE_DOCKER_UNHEALTHY"):
+                    print("runtime startup failed", file=sys.stderr)
+                    raise SystemExit(9)
                 print("native-lift remill=v6.0.1 commit=0e324aee llvm=21.1.0 binary=v6.0.1")
                 raise SystemExit(0)
             if os.environ.get("FAKE_DOCKER_FAIL"):
@@ -83,7 +92,8 @@ def fake_docker(directory: Path) -> tuple[Path, Path]:
 
 class NativeLiftTests(unittest.TestCase):
     def run_lift(
-        self, directory: Path, *arguments: str, fail: bool = False
+        self, directory: Path, *arguments: str, fail: bool = False,
+        env_overrides: dict[str, str] | None = None,
     ) -> subprocess.CompletedProcess[str]:
         _docker, log = fake_docker(directory)
         env = {
@@ -94,6 +104,8 @@ class NativeLiftTests(unittest.TestCase):
         }
         if fail:
             env["FAKE_DOCKER_FAIL"] = "1"
+        if env_overrides:
+            env.update(env_overrides)
         return subprocess.run(
             [sys.executable, str(RUNNER), *arguments],
             cwd=ROOT,
@@ -317,3 +329,71 @@ class NativeLiftTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("unsupported Docker platform linux/s390x", result.stdout)
         self.assertNotIn("image inspect", log_text)
+
+    def test_missing_docker_is_distinct(self) -> None:
+        with tempfile.TemporaryDirectory() as name:
+            directory = Path(name)
+            sample = directory / "code.bin"
+            sample.write_bytes(b"\xc3")
+            result = subprocess.run(
+                [
+                    sys.executable, str(RUNNER), str(sample), str(directory / "out"),
+                    "--arch", "amd64", "--format", "json",
+                ],
+                cwd=ROOT,
+                env={
+                    **os.environ,
+                    "PATH": str(directory),
+                    "REKIT_NATIVE_LIFT_IMAGE": DIGEST_REF,
+                },
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("Docker is not installed or is not on PATH", result.stdout)
+
+    def test_unavailable_daemon_is_distinct(self) -> None:
+        with tempfile.TemporaryDirectory() as name:
+            directory = Path(name)
+            sample = directory / "code.bin"
+            sample.write_bytes(b"\xc3")
+            result = self.run_lift(
+                directory, str(sample), str(directory / "out"),
+                "--arch", "amd64", "--format", "json",
+                env_overrides={"FAKE_DOCKER_DAEMON_DOWN": "1"},
+            )
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("Cannot connect to the Docker daemon", result.stdout)
+
+    def test_missing_immutable_image_is_distinct(self) -> None:
+        with tempfile.TemporaryDirectory() as name:
+            directory = Path(name)
+            sample = directory / "code.bin"
+            sample.write_bytes(b"\xc3")
+            result = self.run_lift(
+                directory, str(sample), str(directory / "out"),
+                "--arch", "amd64", "--format", "json",
+                env_overrides={"FAKE_DOCKER_MISSING_IMAGE": "1"},
+            )
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("immutable image is missing", result.stdout)
+        self.assertIn("install native-lift", result.stdout)
+
+    def test_unhealthy_runtime_is_distinct(self) -> None:
+        with tempfile.TemporaryDirectory() as name:
+            directory = Path(name)
+            sample = directory / "code.bin"
+            sample.write_bytes(b"\xc3")
+            result = self.run_lift(
+                directory, str(sample), str(directory / "out"),
+                "--arch", "amd64", "--format", "json",
+                env_overrides={"FAKE_DOCKER_UNHEALTHY": "1"},
+            )
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("image health check failed", result.stdout)
+        self.assertIn("runtime startup failed", result.stdout)
