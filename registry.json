@@ -3110,6 +3110,159 @@
       "credential_use": false
     }
   },
+  "native-lift": {
+    "name": "Native Code Lifter",
+    "description": "Lift a bounded raw x86, amd64, or aarch64 machine-code region into LLVM IR or bitcode with pinned Remill. Use for semantic analysis of an isolated function, shellcode, or decoder stub. Static and offline: never executes the bytes; rejects whole executable containers.",
+    "version": "0.1.0",
+    "capabilities": [
+      "lift-native",
+      "lift-to-llvm-ir",
+      "analyze-instruction-semantics"
+    ],
+    "kind": "analyze",
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ for the pure-stdlib runner."
+      },
+      {
+        "tool": "native-lift runtime",
+        "check": [
+          "python3",
+          "scripts/check-runtime.py"
+        ],
+        "install_hint": "Install and start Docker, then run `bin/rekit install native-lift` to pull and verify the immutable runtime image."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 1,
+      "notes": "Static Remill translation of at most 64 KiB of raw machine code. The target bytes are never executed or emulated. The immutable image runs with networking disabled, a read-only root filesystem, no Linux capabilities, no privilege escalation, and bounded CPU, memory, processes, temporary storage, and wall time. Image pull is an explicit install step, never part of analysis."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "input",
+          "type": "file",
+          "required": true,
+          "desc": "raw machine-code region, 1 to 65536 bytes; executable containers are rejected"
+        },
+        {
+          "name": "outdir",
+          "type": "dir",
+          "required": true,
+          "desc": "output directory for lifted.ll and/or lifted.bc"
+        },
+        {
+          "name": "--arch",
+          "type": "enum",
+          "required": true,
+          "desc": "target architecture (required)",
+          "choices": [
+            "x86",
+            "amd64",
+            "aarch64"
+          ]
+        },
+        {
+          "name": "--os",
+          "type": "enum",
+          "required": false,
+          "desc": "representative target OS (default linux)",
+          "choices": [
+            "linux",
+            "macos",
+            "windows",
+            "solaris"
+          ]
+        },
+        {
+          "name": "--address",
+          "type": "str",
+          "required": false,
+          "desc": "virtual base address in decimal or 0x notation (default 0)"
+        },
+        {
+          "name": "--entry-address",
+          "type": "str",
+          "required": false,
+          "desc": "entry address inside the byte region (default: base address)"
+        },
+        {
+          "name": "--emit",
+          "type": "enum",
+          "required": false,
+          "desc": "ir | bitcode | both (default ir)",
+          "choices": [
+            "ir",
+            "bitcode",
+            "both"
+          ]
+        },
+        {
+          "name": "--timeout",
+          "type": "int",
+          "required": false,
+          "desc": "wall-clock limit from 1 to 3600 seconds (default 300)"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "tool": "string",
+          "inputBytes": "int",
+          "inputSha256": "string",
+          "arch": "string",
+          "os": "string",
+          "address": "int",
+          "entryAddress": "int",
+          "emit": "string",
+          "image": "string",
+          "runtime": "string",
+          "artifacts": "object",
+          "error": "string?"
+        }
+      }
+    },
+    "payload": {
+      "tool": "Remill 6.0.1 / LLVM 21 container",
+      "source": "https://github.com/lifting-bits/remill",
+      "vendored": null,
+      "runner": "scripts/run.py",
+      "build": "scripts/build.sh",
+      "build_default": false,
+      "note": "The Rekit-owned linux/amd64 and linux/arm64 image is built from Remill commit 0e324aee8c67a63ec759ef379dcfafa0b3cb1448 and invoked by immutable multi-platform manifest digest. `rekit install native-lift` performs the only networked pull; every analysis run is offline."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
+    }
+  },
   "native-decompile": {
     "name": "Native Decompiler",
     "description": "Decompile a native binary (ELF/PE/Mach-O) to C-like pseudocode with rizin's built-in Ghidra decompiler (pdg over all functions). Static: analyses and decompiles, never runs the target. Prereq-gated on rizin/r2; honest blind spot with an install hint when absent. Pair with elf/pe/macho-analyze.",

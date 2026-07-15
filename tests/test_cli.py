@@ -189,6 +189,22 @@ class RekitCliTests(unittest.TestCase):
         self.assertTrue(report["ready"])
         self.assertTrue(report["prerequisites"][0]["present"])
 
+    def test_failed_prerequisite_preserves_bounded_diagnostic(self) -> None:
+        result = REKIT_MODULE.check_prereq(
+            {
+                "tool": "fixture",
+                "check": [
+                    sys.executable,
+                    "-c",
+                    "import sys; print('specific runtime failure'); sys.exit(7)",
+                ],
+            }
+        )
+        self.assertFalse(result["present"])
+        self.assertEqual(
+            result["reason"], "check exited 7: specific runtime failure"
+        )
+
     def test_doctor_reports_an_unbuilt_local_runtime(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             scripts = Path(directory) / "scripts"
@@ -222,7 +238,7 @@ class RekitCliTests(unittest.TestCase):
 
     def test_all_catalog_entries_have_valid_least_authority_contracts(self) -> None:
         registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
-        self.assertEqual(len(registry), 45)
+        self.assertEqual(len(registry), 46)
         for skill_id, entry in registry.items():
             with self.subTest(skill=skill_id):
                 effective, error = REKIT_MODULE.effective_manifest({"id": skill_id, **entry})
@@ -317,6 +333,26 @@ class RekitCliTests(unittest.TestCase):
             "rekit", "run", "--expected-manifest-digest",
         ])
         self.assertEqual(execute.call_args.args[0][3], "a" * 64)
+
+    def test_mcp_requires_declared_required_options(self) -> None:
+        registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
+        entry = registry["native-lift"]
+        effective, error = REKIT_MODULE.effective_manifest(
+            {"id": "native-lift", **entry}
+        )
+        self.assertIsNone(error)
+        tool = MCP_MODULE.skill_to_tool(
+            {"id": "native-lift", **entry, "effectiveManifest": effective},
+            "rekit_",
+            {"ready": True, "missing": []},
+            False,
+        )
+        self.assertIn("arch", tool["inputSchema"]["required"])
+        with self.assertRaisesRegex(Exception, "missing required argument '--arch'"):
+            MCP_MODULE.build_call_args(
+                {"id": "native-lift", **entry},
+                {"input": "code.bin", "outdir": "out"},
+            )
 
 
 if __name__ == "__main__":
