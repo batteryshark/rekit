@@ -238,7 +238,7 @@ class RekitCliTests(unittest.TestCase):
 
     def test_all_catalog_entries_have_valid_least_authority_contracts(self) -> None:
         registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
-        self.assertEqual(len(registry), 46)
+        self.assertEqual(len(registry), 47)
         for skill_id, entry in registry.items():
             with self.subTest(skill=skill_id):
                 effective, error = REKIT_MODULE.effective_manifest({"id": skill_id, **entry})

@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "repository": "ghcr.io/joernio/joern",
+  "tag": "nightly",
+  "digest": "sha256:af2203ab28debcdc879644e5a9b77f237527ddfa70ea03444db8379d877b8df4",
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ],
+  "joernVersion": "4.0.582",
+  "revision": "7da091d0a6a860a89d411ee04e3a7e696dbdf6b1",
+  "created": "2026-07-17T07:55:52.793Z",
+  "languages": [
+    "abap",
+    "c",
+    "csharp",
+    "csharpsrc",
+    "ghidra",
+    "golang",
+    "java",
+    "javascript",
+    "javasrc",
+    "jssrc",
+    "kotlin",
+    "llvm",
+    "newc",
+    "php",
+    "python",
+    "pythonsrc",
+    "rubysrc",
+    "rust",
+    "swiftsrc"
+  ],
+  "maxInputBytes": 536870912,
+  "maxInputFiles": 10000,
+  "maxCpgBytes": 2147483648
+}

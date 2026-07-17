@@ -2393,6 +2393,174 @@
       "credential_use": true
     }
   },
+  "joern-slice": {
+    "name": "Joern Code Slicer",
+    "description": "Build a bounded code property graph and focused data-flow or usage slice with pinned Joern. Use when reverse engineering or security analysis needs interprocedural source context beyond syntax trees. Static and offline; never executes target code.",
+    "version": "0.1.0",
+    "capabilities": [
+      "build-code-property-graph",
+      "slice-data-flow",
+      "trace-behavior-flow",
+      "map-symbol-usages"
+    ],
+    "kind": "analyze",
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ for the pure-stdlib wrapper."
+      },
+      {
+        "tool": "joern-slice runtime",
+        "check": [
+          "python3",
+          "scripts/check-runtime.py"
+        ],
+        "install_hint": "Install and start Docker, then run `bin/rekit install joern-slice` to pull and verify the immutable official Joern image."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 1,
+      "notes": "Static CPG construction and slicing only. The target is copied into a temporary read-only mount and never executed. The immutable official Joern image runs with networking disabled, a read-only root, no Linux capabilities, no privilege escalation, and bounded CPU, memory, processes, temporary storage, input size, and wall time. Its private /tmp is executable only because Joern loads its trusted zstd JNI library there."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "target",
+          "type": "path",
+          "required": true,
+          "desc": "source file or source tree; up to 10000 regular files and 512 MiB"
+        },
+        {
+          "name": "outdir",
+          "type": "dir",
+          "required": true,
+          "desc": "output directory for cpg.bin, raw-slice.json, and evidence.json"
+        },
+        {
+          "name": "--language",
+          "type": "enum",
+          "required": false,
+          "desc": "Joern frontend (default auto)",
+          "choices": [
+            "auto",
+            "abap",
+            "c",
+            "csharp",
+            "csharpsrc",
+            "ghidra",
+            "golang",
+            "java",
+            "javascript",
+            "javasrc",
+            "jssrc",
+            "kotlin",
+            "llvm",
+            "newc",
+            "php",
+            "python",
+            "pythonsrc",
+            "rubysrc",
+            "rust",
+            "swiftsrc"
+          ]
+        },
+        {
+          "name": "--mode",
+          "type": "enum",
+          "required": false,
+          "desc": "behavior-flow | data-flow | usages (default behavior-flow)",
+          "choices": [
+            "behavior-flow",
+            "data-flow",
+            "usages"
+          ]
+        },
+        {
+          "name": "--profile",
+          "type": "file",
+          "required": false,
+          "desc": "schemaVersion 1 declarative behavior profile JSON"
+        },
+        {
+          "name": "--sink-filter",
+          "type": "str",
+          "required": false,
+          "desc": "Joern sink regex for data-flow mode"
+        },
+        {
+          "name": "--slice-depth",
+          "type": "int",
+          "required": false,
+          "desc": "data-flow depth from 1 through 64 (default 12)"
+        },
+        {
+          "name": "--reuse-cpg",
+          "type": "file",
+          "required": false,
+          "desc": "existing local CPG generated for this target and frontend"
+        },
+        {
+          "name": "--timeout",
+          "type": "int",
+          "required": false,
+          "desc": "total wall-clock limit from 1 through 3600 seconds (default 900)"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "tool": "string",
+          "target": "object",
+          "mode": "string",
+          "language": "string",
+          "findings": "int",
+          "metrics": "object",
+          "image": "string",
+          "artifacts": "object",
+          "error": "string?"
+        }
+      }
+    },
+    "payload": {
+      "tool": "Joern 4.0.582 official container",
+      "source": "https://github.com/joernio/joern",
+      "vendored": null,
+      "runner": "scripts/run.py",
+      "build": "scripts/build.sh",
+      "build_default": false,
+      "note": "The official linux/amd64 and linux/arm64 image is pinned by immutable manifest digest and source revision. `rekit install joern-slice` performs the only networked pull; analysis is offline. Callers supply declarative profiles, never arbitrary Scala or Joern scripts."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
+    }
+  },
   "js-covert-scan": {
     "name": "JavaScript Covert-Tactics Scanner",
     "description": "Detect covert/evasive tactics in JavaScript/TypeScript: Unicode steganography (invisible/zero-width/bidi chars, confusable-homoglyph punctuation and letters), XOR/char-code/escape string hiding, and environment-keyed conditional behavior (timezone/locale/geo/proxy). Emits judgment-free parallax atoms (XFRM.UNICODE / XFRM.BITWISE / XFRM.ENCODE / LOAD.EVAL / ENVI.ENVCHECK), each tagged method=\"covert-scan\" so the consumer's lens makes the obfuscation/evasion call by provenance, and flags when atom families co-occur. Static and read-only.",
