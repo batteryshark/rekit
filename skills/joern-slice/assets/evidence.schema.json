@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rekit.dev/schemas/joern-evidence-v1.json",
+  "title": "Rekit Joern evidence",
+  "type": "object",
+  "required": ["schemaVersion", "producer", "target", "analysis", "coverage", "graph", "metrics"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "producer": {"type": "object"},
+    "target": {"type": "object"},
+    "analysis": {"type": "object"},
+    "coverage": {"type": "object"},
+    "graph": {
+      "type": "object",
+      "required": ["nodes", "edges", "paths", "findings"],
+      "properties": {
+        "nodes": {"type": "array"},
+        "edges": {"type": "array"},
+        "paths": {"type": "array"},
+        "findings": {"type": "array"}
+      }
+    },
+    "metrics": {"type": "object"}
+  }
+}
