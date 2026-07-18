@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "remote-content-to-execution-v1",
+  "findingKind": "remote-content-to-code-execution",
+  "sources": [
+    {
+      "id": "network-fetch",
+      "pattern": "urlopen|fetch|download|http\\.(?:get|request)|requests\\.(?:get|post)|axios"
+    }
+  ],
+  "sinks": [
+    {
+      "id": "dynamic-code-execution",
+      "pattern": "(?:^|[^a-z])(?:exec|eval|system)(?:$|[^a-z])|Runtime(?:\\.getRuntime)?\\(\\)\\.exec|child_process"
+    }
+  ]
+}
