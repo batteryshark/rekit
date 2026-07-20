@@ -22,6 +22,8 @@ arm/arm64) with an instruction-count and timeout cap. Reports:
 - final **register** state,
 - **instruction count** and stop reason (completed / fault / instruction-limit),
 - **memory writes** (address ← value).
+- emulator/backend provenance (version, host/process architecture, native/Rosetta,
+  and library digest).
 
 Contained: memory-only, no host syscalls unless explicitly wired. Because it can't
 touch the host, it is **not** behind the `--allow-dynamic` gate (unlike `exec-observe`
@@ -38,3 +40,9 @@ rekit run emulate-code ./stub.bin --arch arm64 --base 0x400000 --format json
 
 - **python3 ≥ 3.8** — Unicorn is installed under `scripts/site` (native; the local
   tree is platform-specific — rebuild with `scripts/build.sh` on a new platform).
+- On Apple Silicon, the build also vendors an x86_64 Unicorn runtime when Rosetta is
+  available. Doctor probes x87 execution and register access in crash-isolated child
+  processes and selects this lane explicitly if native Unicorn is unsafe.
+
+See [`../../docs/UNICORN-X87.md`](../../docs/UNICORN-X87.md) for the macOS ARM64
+root cause, reproducer, fallback contract, and qualified environment.

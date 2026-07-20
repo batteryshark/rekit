@@ -40,6 +40,12 @@ runs require the image to be present and run with networking disabled. An unavai
 Docker daemon, unsupported host platform, absent digest, missing image, or failed image
 health check leaves only that skill unavailable.
 
+On macOS ARM64, Unicorn x86/x87 capability is verified at runtime because a denied
+cache-line sysctl can expose an unsafe Unicorn 2.1.4 ARM64 fallback. Rekit probes x87
+execution and register access in child processes and uses a separately vendored
+x86_64/Rosetta lane when native capability is broken. See
+[`UNICORN-X87.md`](UNICORN-X87.md).
+
 Within Linux the install commands default to **apt** (Debian/Ubuntu). On Fedora/RHEL use
 `dnf`, on Arch use `pacman` — same package names in most cases. `uv`'s installer
 (`curl -LsSf https://astral.sh/uv/install.sh | sh`) is distro-agnostic.

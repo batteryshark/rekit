@@ -40,3 +40,9 @@ matrix, engine-specific behavior, persistence format, and safety boundaries.
   state must survive multiple operations.
 - Use separate session directories for parallel investigations.
 - `close` preserves evidence and marks the session closed; it never deletes files.
+- Every Unicorn result records backend provenance. On Apple Silicon, native and
+  Rosetta x86_64 are capability-probed separately; a host signal is returned as a
+  tooling-capability error and never as guest behavior.
+
+See [`../../docs/UNICORN-X87.md`](../../docs/UNICORN-X87.md) for the x87 capability
+checks and fallback contract.

@@ -16,9 +16,17 @@ import argparse
 import json
 import os
 import sys
+from pathlib import Path
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(HERE, "site"))
+NATIVE_SITE = Path(HERE) / "site"
+ROSETTA_SITE = Path(HERE) / "site-x86_64"
+SITE = Path(os.environ.get("REKIT_UNICORN_SITE", NATIVE_SITE))
+sys.path.insert(0, str(SITE))
+ROOT_SCRIPTS = Path(HERE).resolve().parents[2] / "scripts"
+sys.path.insert(0, str(ROOT_SCRIPTS))
+
+from unicorn_x87_probe import CapabilityError, ensure_backend
 
 
 def _regs(mod, prefix, names):
@@ -47,7 +55,7 @@ def _arch_table():
     }
 
 
-def emulate(code: bytes, arch: str, base: int, max_insn: int, timeout: int):
+def emulate(code: bytes, arch: str, base: int, max_insn: int, timeout: int, backend: dict):
     from unicorn import Uc, UC_HOOK_CODE, UC_HOOK_MEM_WRITE, UC_SECOND_SCALE, UcError
 
     uc_arch, uc_mode, reglist, sp_reg = _arch_table()[arch]
@@ -85,7 +93,7 @@ def emulate(code: bytes, arch: str, base: int, max_insn: int, timeout: int):
     regs = {n: hex(mu.reg_read(r)) for n, r in reglist}
     return {"ok": error is None, "arch": arch, "codeBytes": len(code),
             "instructions": count[0], "stopReason": stop, "error": error,
-            "registers": regs, "memWrites": writes}
+            "registers": regs, "memWrites": writes, "backend": backend}
 
 
 def main(argv: list[str]) -> int:
@@ -105,7 +113,22 @@ def main(argv: list[str]) -> int:
         print(json.dumps({"ok": False, "error": "empty code blob"}))
         return 2
     try:
-        res = emulate(code, a.arch, a.base, a.max_insn, a.timeout)
+        backend = ensure_backend(
+            NATIVE_SITE,
+            ROSETTA_SITE,
+            [str(Path(__file__).resolve()), *argv[1:]],
+        )
+    except CapabilityError as exc:
+        try:
+            capability = json.loads(str(exc))
+        except json.JSONDecodeError:
+            capability = {"error": str(exc)}
+        print(json.dumps({"ok": False, "errorType": "tooling-capability",
+                          "error": "no safe Unicorn backend is available",
+                          "capability": capability}))
+        return 1
+    try:
+        res = emulate(code, a.arch, a.base, a.max_insn, a.timeout, backend)
     except Exception as exc:  # pragma: no cover
         print(json.dumps({"ok": False, "error": f"emulation setup failed: {exc}"}))
         return 1
@@ -115,6 +138,9 @@ def main(argv: list[str]) -> int:
         return 0
     print(f"emulate-code: {a.arch}  {res['codeBytes']} bytes  {res['instructions']} insn  "
           f"stop={res['stopReason']}" + (f"  fault: {res['error']}" if res['error'] else ""))
+    print(f"  backend: {res['backend'].get('backend')} "
+          f"host={res['backend'].get('hostArchitecture')} "
+          f"process={res['backend'].get('processArchitecture')}")
     gp = [f"{n}={v}" for n, v in list(res["registers"].items())[:10]]
     print("  regs: " + "  ".join(gp))
     if res["memWrites"]:

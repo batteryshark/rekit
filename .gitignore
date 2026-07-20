@@ -1,6 +1,7 @@
 # Locally built skill runtimes are rebuildable from committed manifests and lockfiles.
 skills/*/scripts/node_modules/
 skills/*/scripts/site/
+skills/*/scripts/site-x86_64/
 
 # Private or locally built native payloads: usable in-place, never redistributed.
 skills/dex-dump/bin/dex-dumper

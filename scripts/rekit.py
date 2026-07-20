@@ -256,6 +256,17 @@ def check_prereq(pre: dict, cwd: Path | None = None) -> dict:
     out = (proc.stdout or "") + (proc.stderr or "")
     version = _parse_version(out)
     result["version"] = ".".join(map(str, version)) if version else None
+    stdout = (proc.stdout or "").strip()
+    if stdout:
+        try:
+            detail = json.loads(stdout)
+        except json.JSONDecodeError:
+            detail = None
+        if isinstance(detail, dict):
+            result["details"] = detail
+            emulator_version = (detail.get("provenance") or {}).get("emulatorVersion")
+            if emulator_version:
+                result["version"] = emulator_version
     if proc.returncode != 0:
         lines = [line.strip() for line in out.splitlines() if line.strip()]
         detail = lines[-1][:500] if lines else None
@@ -433,6 +444,9 @@ def cmd_doctor(args) -> int:
         for p in r["prerequisites"]:
             if p["present"]:
                 print(f"       + {p['tool']} {p.get('version') or ''}".rstrip())
+                details = p.get("details")
+                if isinstance(details, dict) and details.get("selectedBackend"):
+                    print(f"         backend: {details['selectedBackend']}")
             else:
                 print(f"       - {p['tool']} MISSING ({p['reason']}) — {p['install_hint']}")
         if r.get("error"):

@@ -21,9 +21,14 @@ from pathlib import Path
 from typing import Any, Iterator
 
 HERE = Path(__file__).resolve().parent
-SITE = HERE / "site"
+NATIVE_SITE = HERE / "site"
+ROSETTA_SITE = HERE / "site-x86_64"
+SITE = Path(os.environ.get("REKIT_UNICORN_SITE", NATIVE_SITE))
 if SITE.is_dir():
     sys.path.insert(0, str(SITE))
+sys.path.insert(0, str(HERE.parents[2] / "scripts"))
+
+from unicorn_x87_probe import CapabilityError, ensure_backend
 
 SCHEMA_VERSION = 1
 PAGE = 0x1000
@@ -196,7 +201,7 @@ def arch_spec(name: str) -> dict[str, Any]:
             "registers": register_map, "pc": pc, "sp": sp}
 
 
-def create_unicorn(root: Path, args: argparse.Namespace) -> dict[str, Any]:
+def create_unicorn(root: Path, args: argparse.Namespace, backend: dict[str, Any]) -> dict[str, Any]:
     target = Path(args.input).expanduser().resolve() if args.input else None
     if not target or not target.is_file():
         raise SessionError("Unicorn create requires an existing --input code blob")
@@ -222,6 +227,7 @@ def create_unicorn(root: Path, args: argparse.Namespace) -> dict[str, Any]:
     atomic_bytes(root / "regions/stack.bin", bytes(stack_size))
     pc_value = base | 1 if arch == "thumb" else base
     state = {"schema": SCHEMA_VERSION, "engine": "unicorn", "arch": arch,
+             "backend": backend,
              "target": str(target), "createdAt": int(time.time()), "closed": False,
              "entry": base, "end": base + len(code), "regions": regions,
              "registers": {spec["pc"]: pc_value, spec["sp"]: stack_start + stack_size // 2},
@@ -429,6 +435,7 @@ def run_qiling(root: Path, state: dict[str, Any], args: argparse.Namespace, *, s
 
 def summary(state: dict[str, Any], root: Path) -> dict[str, Any]:
     result = {"ok": True, "session": str(root), "engine": state["engine"],
+              "backend": state.get("backend"),
               "arch": state.get("arch"), "target": state.get("target"),
               "closed": state.get("closed", False), "hooks": len(state.get("hooks", [])),
               "snapshots": len(state.get("snapshots", [])), "traceSize": len(state.get("trace", []))}
@@ -697,19 +704,42 @@ def render_text(result: dict[str, Any]) -> str:
 def main(argv: list[str]) -> int:
     args = parser().parse_args(argv[1:])
     root = Path(args.session).expanduser().resolve()
+    backend = None
     try:
+        needs_unicorn = args.action == "create" and args.engine == "unicorn"
+        if args.action != "create" and (root / "session.json").is_file():
+            try:
+                needs_unicorn = json.loads((root / "session.json").read_text(encoding="utf-8")).get("engine") == "unicorn"
+            except (OSError, json.JSONDecodeError):
+                pass
+        if needs_unicorn:
+            backend = ensure_backend(
+                NATIVE_SITE,
+                ROSETTA_SITE,
+                [str(Path(__file__).resolve()), *argv[1:]],
+            )
         with session_lock(root):
             if args.action == "create":
                 if (root / "session.json").exists():
                     raise SessionError(f"session already exists at {root}")
                 if args.engine == "unicorn":
-                    result = create_unicorn(root, args)
+                    result = create_unicorn(root, args, backend or {})
                 elif args.engine == "qiling":
                     result = create_qiling(root, args)
                 else:
                     raise SessionError("create requires --engine unicorn|qiling")
             else:
                 result = operate(root, load_state(root), args)
+        if backend and isinstance(result, dict):
+            result["backend"] = backend
+    except CapabilityError as exc:
+        try:
+            capability = json.loads(str(exc))
+        except json.JSONDecodeError:
+            capability = {"error": str(exc)}
+        result = {"ok": False, "errorType": "tooling-capability",
+                  "error": "no safe Unicorn backend is available",
+                  "capability": capability, "session": str(root)}
     except (SessionError, OSError, json.JSONDecodeError) as exc:
         result = {"ok": False, "error": str(exc), "session": str(root)}
     except Exception as exc:

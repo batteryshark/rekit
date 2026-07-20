@@ -6,11 +6,12 @@ SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 RT="$SKILL_DIR/scripts"
 PYTHON="$(command -v python3)"
 rm -rf "$RT/site"
+rm -rf "$RT/site-x86_64"
 echo "vendoring Unicorn, Capstone, and Qiling into scripts/site..."
 if [[ "$(uname -s)" == "Darwin" && "$(uname -m)" == "arm64" ]]; then
-  # Unicorn's published 2.1.x macOS arm64 wheel can terminate with SIGILL when
-  # emulation starts on some Apple Silicon hosts. A local source build uses the
-  # current machine baseline and avoids that wheel-specific failure.
+  # Keep the existing local source build for Apple Silicon compatibility. It
+  # does not repair Unicorn's restricted-sysctl CTR_EL0 fallback; doctor probes
+  # that capability and the runner selects the Rosetta payload below when needed.
   uv pip install --python "$PYTHON" --target "$RT/site" --no-binary unicorn -r "$RT/requirements.txt" -q
 
   # keystone-engine 0.9.2 publishes Python bindings but no Apple Silicon
@@ -46,6 +47,15 @@ if [[ "$(uname -s)" == "Darwin" && "$(uname -m)" == "arm64" ]]; then
     exit 3
   fi
   cp "$KS_TMP/build/llvm/lib/libkeystone.dylib" "$RT/site/keystone/libkeystone.dylib"
+
+  if arch -x86_64 /usr/bin/python3 -c 'import platform; assert platform.machine() == "x86_64"' 2>/dev/null; then
+    echo "vendoring Unicorn/Capstone Rosetta fallback into scripts/site-x86_64..."
+    uv pip install --target "$RT/site-x86_64" \
+      --python-platform x86_64-apple-darwin --python-version 3.9 \
+      unicorn==2.1.4 capstone==5.0.6 -q
+  else
+    echo "note: Rosetta is unavailable; native Unicorn capability must pass doctor"
+  fi
 else
   uv pip install --python "$PYTHON" --target "$RT/site" -r "$RT/requirements.txt" -q
 fi

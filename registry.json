@@ -842,6 +842,38 @@
           "--version"
         ],
         "install_hint": "Install Python 3.8+. Unicorn is vendored under scripts/site."
+      },
+      {
+        "tool": "Unicorn x87 execution",
+        "check": [
+          "python3",
+          "../../scripts/unicorn_x87_probe.py",
+          "--site",
+          "scripts/site",
+          "--rosetta-site",
+          "scripts/site-x86_64",
+          "--capability",
+          "execution",
+          "--format",
+          "json"
+        ],
+        "install_hint": "Run `bin/rekit install emulate-code`. On Apple Silicon, install Rosetta when native Unicorn runs under a policy that denies hw.cachelinesize."
+      },
+      {
+        "tool": "Unicorn x87 register access",
+        "check": [
+          "python3",
+          "../../scripts/unicorn_x87_probe.py",
+          "--site",
+          "scripts/site",
+          "--rosetta-site",
+          "scripts/site-x86_64",
+          "--capability",
+          "register-access",
+          "--format",
+          "json"
+        ],
+        "install_hint": "Run `bin/rekit install emulate-code`. On Apple Silicon, install Rosetta when native Unicorn runs under a policy that denies hw.cachelinesize."
       }
     ],
     "safety": {
@@ -913,6 +945,7 @@
           "stopReason": "string",
           "registers": "object",
           "memWrites": "array",
+          "backend": "object",
           "error": "string|null"
         }
       }
@@ -962,6 +995,38 @@
           "scripts/check-runtime.py"
         ],
         "install_hint": "Run `bin/rekit install emulation-session` with the same python3 Rekit uses. On macOS ARM64, git, cmake, and a C/C++ toolchain are also required."
+      },
+      {
+        "tool": "Unicorn x87 execution",
+        "check": [
+          "python3",
+          "../../scripts/unicorn_x87_probe.py",
+          "--site",
+          "scripts/site",
+          "--rosetta-site",
+          "scripts/site-x86_64",
+          "--capability",
+          "execution",
+          "--format",
+          "json"
+        ],
+        "install_hint": "Run `bin/rekit install emulation-session`. On Apple Silicon, install Rosetta when native Unicorn runs under a policy that denies hw.cachelinesize."
+      },
+      {
+        "tool": "Unicorn x87 register access",
+        "check": [
+          "python3",
+          "../../scripts/unicorn_x87_probe.py",
+          "--site",
+          "scripts/site",
+          "--rosetta-site",
+          "scripts/site-x86_64",
+          "--capability",
+          "register-access",
+          "--format",
+          "json"
+        ],
+        "install_hint": "Run `bin/rekit install emulation-session`. On Apple Silicon, install Rosetta when native Unicorn runs under a policy that denies hw.cachelinesize."
       }
     ],
     "safety": {
