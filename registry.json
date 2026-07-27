@@ -221,6 +221,294 @@
       "credential_use": false
     }
   },
+  "bin-table-diff": {
+    "name": "Binary Record Table Diff",
+    "description": "Find fixed-stride record tables compiled into a binary (song lists, level tables, item stats), infer each column's type from the data, extract them to JSON/CSV, and diff two builds record by record. Use when content lives in static tables rather than data files and a function-level diff would miss it entirely — added or removed entries, rebalanced values, regional catalogue swaps. Pure stdlib and read-only; never executes the input.",
+    "version": "0.1.0",
+    "capabilities": [
+      "find-static-tables",
+      "extract-record-table",
+      "diff-record-table",
+      "document-changes"
+    ],
+    "kind": "analyze",
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ — pure stdlib, no other dependency."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 1,
+      "notes": "Reads the binary and translates virtual addresses through its PT_LOAD headers; never executes, maps, or emulates it. Output is written only under the given outdir."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "op",
+          "type": "enum",
+          "required": true,
+          "desc": "operation to run",
+          "choices": [
+            "find",
+            "extract",
+            "diff"
+          ]
+        },
+        {
+          "name": "target",
+          "type": "file",
+          "required": true,
+          "desc": "binary to inspect (primary/old build for diff)"
+        },
+        {
+          "name": "other",
+          "type": "path",
+          "required": false,
+          "desc": "extract: output dir | diff: secondary/new binary"
+        },
+        {
+          "name": "outdir",
+          "type": "dir",
+          "required": false,
+          "desc": "diff: output directory"
+        },
+        {
+          "name": "--offset",
+          "type": "str",
+          "required": false,
+          "desc": "table file offset (hex ok) — overrides auto-detection; needs --stride and --records"
+        },
+        {
+          "name": "--stride",
+          "type": "str",
+          "required": false,
+          "desc": "record size in bytes (hex ok)"
+        },
+        {
+          "name": "--records",
+          "type": "int",
+          "required": false,
+          "desc": "record count when overriding detection"
+        },
+        {
+          "name": "--key",
+          "type": "str",
+          "required": false,
+          "desc": "column(s) identifying a record, '+'-joined (e.g. f08+f0C); default picks the two most distinctive string columns"
+        },
+        {
+          "name": "--encoding",
+          "type": "str",
+          "required": false,
+          "desc": "pin the string codepage (e.g. big5, euc-kr) instead of guessing per string"
+        },
+        {
+          "name": "--min-records",
+          "type": "int",
+          "required": false,
+          "desc": "smallest run treated as a table (default 8)"
+        },
+        {
+          "name": "--top",
+          "type": "int",
+          "required": false,
+          "desc": "entries shown per section (default 25)"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "tool": "string",
+          "tables": "array",
+          "offset": "int",
+          "stride": "int",
+          "records": "int",
+          "key": "string",
+          "added": "int",
+          "removed": "int",
+          "changed": "int",
+          "jsonFile": "string",
+          "csvFile": "string",
+          "diffFile": "string"
+        }
+      }
+    },
+    "payload": {
+      "tool": "(none — pure stdlib)",
+      "source": "https://github.com/batteryshark/rekit",
+      "vendored": null,
+      "runner": "scripts/run.py",
+      "note": "Complements diaphora-diff and bindiff, which compare code and are blind to static content tables. Detection keys on runs of records at a fixed stride sharing a column of pointers into the binary's own string data; offsets are anchor-relative because the pointer block's position inside the struct is not recoverable from pointer validity alone."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
+    }
+  },
+  "bindiff": {
+    "name": "BinDiff (binary structural diff)",
+    "description": "Match functions across two builds of a binary with Google BinDiff: per-function similarity and confidence, renamed or moved functions, and functions added or removed. Use for patch diffing (what did this update actually change?), porting symbols from a named build onto a stripped one, malware variant comparison, and finding a known function again after a recompile moved every address. Complements intellidiff, which compares bytes and text rather than structure. Static — disassembles and matches, never executes either binary.",
+    "version": "0.1.0",
+    "capabilities": [
+      "diff-binaries",
+      "match-functions",
+      "patch-diff",
+      "port-symbols",
+      "binary-similarity"
+    ],
+    "kind": "analyze",
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ for the pure-stdlib runner."
+      },
+      {
+        "tool": "bindiff",
+        "check": [
+          "bindiff",
+          "--print_config"
+        ],
+        "install_hint": "Install BinDiff 8 (https://github.com/google/bindiff/releases) and put `bindiff` on PATH (macOS /Applications/BinDiff/bindiff, Linux /opt/bindiff/bin/bindiff). Unless you pass .BinExport files directly, you also need a disassembler backend — IDA Pro or Ghidra — with the matching BinExport plugin (https://github.com/google/binexport/releases)."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 1,
+      "notes": "Trusted analyzers (IDA/Ghidra + BinDiff) over untrusted binaries — disassembly, graph matching, and SQLite/protobuf parsing only; neither input is ever run. Disassembler databases are written into a temporary directory that is deleted afterward, so the sample's own directory is left untouched and every artifact lands in outdir. All subprocesses are timeout-bounded."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "primary",
+          "type": "file",
+          "required": true,
+          "desc": "old/reference binary, or a .BinExport file"
+        },
+        {
+          "name": "secondary",
+          "type": "file",
+          "required": true,
+          "desc": "new/candidate binary, or a .BinExport file"
+        },
+        {
+          "name": "outdir",
+          "type": "dir",
+          "required": true,
+          "desc": "output dir (writes summary.json, matches.json, unmatched.json, the .BinDiff database, and any .BinExport files it produced)"
+        },
+        {
+          "name": "--backend",
+          "type": "enum",
+          "required": false,
+          "desc": "disassembler used to produce .BinExport files: auto (IDA, then Ghidra) | ida | ghidra | none (both inputs must already be .BinExport)",
+          "choices": [
+            "auto",
+            "ida",
+            "ghidra",
+            "none"
+          ]
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        },
+        {
+          "name": "--top",
+          "type": "int",
+          "required": false,
+          "desc": "entries shown per section in the summary (default 25; full lists always go to the JSON files)"
+        },
+        {
+          "name": "--identical-threshold",
+          "type": "str",
+          "required": false,
+          "desc": "similarity at or above which a matched pair counts as unchanged (default 1.0)"
+        },
+        {
+          "name": "--timeout",
+          "type": "int",
+          "required": false,
+          "desc": "per-step timeout in seconds for export and diff (default 3600)"
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "tool": "string",
+          "backend": "string",
+          "similarity": "float",
+          "confidence": "float",
+          "counts": "object",
+          "topChanged": "array",
+          "added": "array",
+          "removed": "array",
+          "resultDb": "string",
+          "matchesFile": "string",
+          "unmatchedFile": "string",
+          "summaryFile": "string"
+        }
+      }
+    },
+    "payload": {
+      "tool": "bindiff + binexport",
+      "source": "https://github.com/google/bindiff",
+      "vendored": "scripts/ghidra_binexport.py + scripts/binexport_read.py",
+      "runner": "scripts/run.py",
+      "note": "BYO BinDiff plus a disassembler (IDA Pro or Ghidra) with the BinExport plugin — large third-party installs, not bundled. We DO bundle the Ghidra headless BinExport script (scripts/ghidra_binexport.py, Jython) and a pure-stdlib BinExport2 protobuf reader (scripts/binexport_read.py) that recovers added/removed functions, which BinDiff's result database does not record. Dispatcher prereq gate = honest degradation."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
+    }
+  },
   "binwalk-carve": {
     "name": "Firmware Carver (binwalk)",
     "description": "Carve and recursively extract embedded files from a firmware image or blob (filesystems, bootloaders, nested archives) with binwalk. The heavy sibling of bin-triage's embedded-signature preview. Prereq-gated on binwalk; honest blind spot with an install hint when absent.",
@@ -569,6 +857,303 @@
       "actions": [
         "read_local_target",
         "execute_untrusted"
+      ],
+      "credential_use": false
+    }
+  },
+  "diaphora-diff": {
+    "name": "Diaphora Program Diff",
+    "description": "Match functions between two builds of a program with Diaphora, recover symbol names from a build that has them onto stripped builds, and emit per-function pseudocode diffs documenting what changed. Use for version lineage archaeology, renaming stripped binaries from an unstripped sibling, and reconstructing undocumented source changes between releases. Export needs IDA; diffing and reporting are pure Python. Static — analyses and matches, never runs the targets.",
+    "version": "0.1.0",
+    "capabilities": [
+      "diff-binaries",
+      "match-functions",
+      "recover-symbols",
+      "port-symbols",
+      "patch-diff",
+      "document-changes"
+    ],
+    "kind": "analyze",
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ for the runner and Diaphora itself."
+      },
+      {
+        "tool": "diaphora runtime",
+        "check": [
+          "python3",
+          "scripts/check-runtime.py"
+        ],
+        "install_hint": "Run `bin/rekit install diaphora-diff` to vendor the pinned Diaphora 3.4.1 release and its dependencies (needs curl + uv + network at build time only). IDA Pro is additionally required for the `export` operation — put `idat` on PATH or set IDA_HOME; `diff` and `report` work without it."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 1,
+      "notes": "Trusted analyzers (IDA + Diaphora) over untrusted binaries — disassembly, heuristic graph matching, and SQLite reporting only; the targets are never run. Export stages a copy of the binary in a temporary directory so IDA's database never lands beside the sample, and the temp dir is removed afterward. Diaphora is pinned to one immutable commit and vendored at build time; nothing is fetched during analysis. The generated IDA rename script is written to disk for review and is never executed by this skill."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "op",
+          "type": "enum",
+          "required": true,
+          "desc": "operation to run",
+          "choices": [
+            "export",
+            "diff",
+            "report",
+            "compare"
+          ]
+        },
+        {
+          "name": "target",
+          "type": "path",
+          "required": true,
+          "desc": "export: binary | diff/report: primary export db | compare: primary binary (the one WITH symbols, if any)"
+        },
+        {
+          "name": "other",
+          "type": "path",
+          "required": false,
+          "desc": "export: output db path | diff/report: secondary export db | compare: secondary binary"
+        },
+        {
+          "name": "outdir",
+          "type": "dir",
+          "required": false,
+          "desc": "output directory (diff, report, compare)"
+        },
+        {
+          "name": "--results",
+          "type": "file",
+          "required": false,
+          "desc": "report: an existing Diaphora results database to report on"
+        },
+        {
+          "name": "--cache",
+          "type": "dir",
+          "required": false,
+          "desc": "compare: export cache dir, keyed by binary hash (default <outdir>/cache)"
+        },
+        {
+          "name": "--ida",
+          "type": "file",
+          "required": false,
+          "desc": "path to idat for the export step"
+        },
+        {
+          "name": "--decompiler",
+          "type": "flag",
+          "required": false,
+          "desc": "export Hex-Rays pseudocode: slower, but much better matching and readable diffs"
+        },
+        {
+          "name": "--min-ratio",
+          "type": "str",
+          "required": false,
+          "desc": "minimum match ratio for a name to count as recoverable (default 0.75)"
+        },
+        {
+          "name": "--rename-types",
+          "type": "str",
+          "required": false,
+          "desc": "comma-separated Diaphora match types eligible for name recovery (default best,partial)"
+        },
+        {
+          "name": "--name-map",
+          "type": "file",
+          "required": false,
+          "desc": "renames.json from an earlier hop, so recovered names carry forward along a chain instead of each hop restarting from sub_*"
+        },
+        {
+          "name": "--top",
+          "type": "int",
+          "required": false,
+          "desc": "entries shown per section in the summary (default 25)"
+        },
+        {
+          "name": "--max-pseudo-diffs",
+          "type": "int",
+          "required": false,
+          "desc": "cap on per-function pseudocode diff files written (default 200)"
+        },
+        {
+          "name": "--raw-pseudo",
+          "type": "flag",
+          "required": false,
+          "desc": "diff pseudocode verbatim instead of normalising away decompiler renumbering, allocation comments and shifted addresses"
+        },
+        {
+          "name": "--format",
+          "type": "enum",
+          "required": false,
+          "desc": "text | json (default text)",
+          "choices": [
+            "text",
+            "json"
+          ]
+        },
+        {
+          "name": "--timeout",
+          "type": "int",
+          "required": false,
+          "desc": "per-step timeout in seconds (default 7200; IDA export of a large binary is slow)"
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "text|json",
+        "fields": {
+          "ok": "bool",
+          "tool": "string",
+          "counts": "object",
+          "topRenames": "array",
+          "topChanged": "array",
+          "pseudoDiffCount": "int",
+          "resultsDb": "string",
+          "matchesFile": "string",
+          "renamesFile": "string",
+          "renameScript": "string",
+          "unmatchedFile": "string",
+          "summaryFile": "string",
+          "pseudoNormalized": "bool"
+        }
+      }
+    },
+    "payload": {
+      "tool": "diaphora",
+      "source": "https://github.com/joxeankoret/diaphora",
+      "vendored": "scripts/diaphora + scripts/site",
+      "runner": "scripts/run.py",
+      "note": "Diaphora 3.4.1 pinned to commit 12f72b1683d605a796823a251f46e018e43a3eb3, fetched by scripts/build.sh at install time. Export requires IDA Pro (BYO); diff and report are pure Python over the exported SQLite databases, so a corpus of N builds costs N exports and then any pairing is cheap. The heavyweight companion to bindiff: bindiff is faster and Ghidra-capable, Diaphora matches better and carries pseudocode for both sides, which is what makes name recovery and change documentation possible."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
+    }
+  },
+  "disk-image-scan": {
+    "name": "Disk Image Scanner",
+    "description": "Read-only forensic inventory of raw disk images and large media blobs: hash a selected byte range, parse MBR/GPT partition maps, validate ext/NTFS/FAT/ISO filesystem candidates, and locate archive and evidence signatures with absolute byte and LBA offsets. Use before carving or filesystem recovery to map evidence-bearing regions. Pure Python; never mounts or modifies the image.",
+    "version": "0.1.0",
+    "kind": "analyze",
+    "capabilities": [
+      "scan-disk-image",
+      "inventory-partitions",
+      "detect-filesystems",
+      "locate-embedded-data",
+      "forensic-triage"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+. The scanner is otherwise pure standard library."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 0,
+      "notes": "Read-only streaming byte analysis. Opens the image as rb, performs bounded pure-Python parsing, and writes only scan reports beneath the caller-selected output directory. Never mounts, repairs, or executes image content."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "input",
+          "type": "file",
+          "required": true,
+          "desc": "raw disk image or media blob"
+        },
+        {
+          "name": "outdir",
+          "type": "dir",
+          "required": true,
+          "desc": "output directory for scan.jsonl and summary.json"
+        },
+        {
+          "name": "--start",
+          "type": "int",
+          "required": false,
+          "desc": "start byte offset (default 0)"
+        },
+        {
+          "name": "--length",
+          "type": "int",
+          "required": false,
+          "desc": "bytes to scan (default through EOF)"
+        },
+        {
+          "name": "--chunk-mib",
+          "type": "int",
+          "required": false,
+          "desc": "streaming chunk size in MiB (default 64)"
+        },
+        {
+          "name": "--max-hits",
+          "type": "int",
+          "required": false,
+          "desc": "maximum report records (default 100000)"
+        },
+        {
+          "name": "--sector-size",
+          "type": "int",
+          "required": false,
+          "desc": "logical sector bytes for GPT parsing (default 512)"
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "json",
+        "fields": {
+          "ok": "bool",
+          "image": "string",
+          "imageSize": "int",
+          "range": "object",
+          "imageSha256": "string?",
+          "rangeSha256": "string?",
+          "partitionMap": "object|null",
+          "counts": "object",
+          "hitLimitReached": "bool",
+          "scanFile": "string",
+          "summaryFile": "string"
+        }
+      }
+    },
+    "payload": {
+      "tool": "(builtin)",
+      "vendored": null,
+      "runner": "scripts/run.py",
+      "pure_stdlib": true,
+      "note": "Generalizes the evidence-preserving scan workflow from a successful large-image recovery: partition metadata, full or range SHA-256, archive signatures, and validated ext/NTFS/FAT/ISO candidates share one offset-aware report."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
       ],
       "credential_use": false
     }
@@ -1346,6 +1931,271 @@
         "read_local_target",
         "execute_untrusted",
         "network_access"
+      ],
+      "credential_use": false
+    }
+  },
+  "filesystem-recover": {
+    "name": "Filesystem Recovery",
+    "description": "Recover allocated, deleted, or all files from an ext, NTFS, FAT, or other Sleuth Kit-supported filesystem at an explicit image sector offset. Use after disk-image-scan validates a filesystem start. Runs tsk_recover without mounting the source, emits an fls metadata-address/MFT record-to-name map, safely renames unambiguous OrphanFile-record placeholders from surviving metadata, and hashes recovered files.",
+    "version": "0.1.0",
+    "kind": "analyze",
+    "capabilities": [
+      "recover-filesystem",
+      "recover-deleted-files",
+      "recover-allocated-files",
+      "extract-filesystem-image",
+      "forensic-recovery"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+ for the runner."
+      },
+      {
+        "tool": "tsk_recover",
+        "check": [
+          "tsk_recover",
+          "-V"
+        ],
+        "install_hint": "Install The Sleuth Kit and put tsk_recover on PATH (https://www.sleuthkit.org/)."
+      },
+      {
+        "tool": "fls",
+        "check": [
+          "fls",
+          "-V"
+        ],
+        "install_hint": "Install The Sleuth Kit and put fls on PATH (https://www.sleuthkit.org/)."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 1,
+      "notes": "Runs the trusted Sleuth Kit tsk_recover and fls parsers over untrusted image bytes. The source is never mounted or modified. Recovered bytes, bounded parsed metadata, logs, reports, MFT/inode name and rename manifests, and SHA-256 identities are written only beneath a new or empty output directory. Renaming never overwrites and requires one safe non-reallocated metadata path."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "input",
+          "type": "file",
+          "required": true,
+          "desc": "raw disk or filesystem image"
+        },
+        {
+          "name": "outdir",
+          "type": "dir",
+          "required": true,
+          "desc": "new or empty output directory"
+        },
+        {
+          "name": "--offset",
+          "type": "int",
+          "required": true,
+          "desc": "filesystem start in sectors"
+        },
+        {
+          "name": "--mode",
+          "type": "enum",
+          "required": false,
+          "desc": "allocated | deleted | all (default deleted)",
+          "choices": [
+            "allocated",
+            "deleted",
+            "all"
+          ]
+        },
+        {
+          "name": "--fstype",
+          "type": "str",
+          "required": false,
+          "desc": "Sleuth Kit filesystem type override"
+        },
+        {
+          "name": "--sector-size",
+          "type": "int",
+          "required": false,
+          "desc": "device sector bytes (default 512)"
+        },
+        {
+          "name": "--timeout",
+          "type": "int",
+          "required": false,
+          "desc": "recovery timeout seconds (default 14400)"
+        },
+        {
+          "name": "--max-files",
+          "type": "int",
+          "required": false,
+          "desc": "manifest file-record limit (default 1000000)"
+        },
+        {
+          "name": "--max-name-records",
+          "type": "int",
+          "required": false,
+          "desc": "parsed fls metadata-name record limit (default 2000000)"
+        },
+        {
+          "name": "--no-hash",
+          "type": "flag",
+          "required": false,
+          "desc": "skip per-file SHA-256 generation"
+        },
+        {
+          "name": "--no-metadata-names",
+          "type": "flag",
+          "required": false,
+          "desc": "skip fls MFT/inode name mapping and orphan placeholder renaming"
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "json",
+        "fields": {
+          "ok": "bool",
+          "image": "string",
+          "offsetSectors": "int",
+          "offsetBytes": "int",
+          "mode": "string",
+          "fileCount": "int",
+          "totalBytes": "int",
+          "hashesRecorded": "bool",
+          "manifestTruncated": "bool",
+          "manifest": "string",
+          "report": "string",
+          "exitCode": "int|null",
+          "timedOut": "bool",
+          "flsExitCode": "int|null",
+          "flsTimedOut": "bool",
+          "metadataNameCount": "int",
+          "metadataNamesTruncated": "bool",
+          "metadataNamesIncomplete": "bool?",
+          "orphanPlaceholderCount": "int",
+          "metadataRenamedCount": "int",
+          "metadataRenameSkipped": "int",
+          "metadataRenameErrors": "int",
+          "metadataNamesFile": "string|null",
+          "metadataRenamesFile": "string|null"
+        }
+      }
+    },
+    "payload": {
+      "tool": "tsk_recover (The Sleuth Kit)",
+      "source": "https://www.sleuthkit.org/",
+      "vendored": null,
+      "runner": "scripts/run.py",
+      "note": "BYO tsk_recover and fls from The Sleuth Kit. The wrapper makes sector units and allocated/deleted provenance explicit, records metadata-address to path mappings (MFT records on NTFS), conservatively renames only unambiguous orphan placeholders, refuses to mix output trees, and produces hashes and logs suitable for later verification."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
+      ],
+      "credential_use": false
+    }
+  },
+  "forensic-archive-carve": {
+    "name": "Forensic Archive Carver",
+    "description": "Recover structurally complete classic ZIP and RAR4 archives from raw disk images or media blobs, preserving absolute byte offsets, SHA-256 identities, validation method, and duplicate relationships in a JSONL manifest. Use after disk-image-scan or for direct archive carving from unallocated space. Pure Python; reads the source image without mounting or modifying it.",
+    "version": "0.1.0",
+    "kind": "analyze",
+    "capabilities": [
+      "carve-archives",
+      "carve-zip",
+      "carve-rar",
+      "recover-embedded-data",
+      "forensic-recovery"
+    ],
+    "prerequisites": [
+      {
+        "tool": "python3",
+        "min_version": "3.8",
+        "check": [
+          "python3",
+          "--version"
+        ],
+        "install_hint": "Install Python 3.8+. The carver is otherwise pure standard library."
+      }
+    ],
+    "safety": {
+      "executes_input": "no",
+      "network": "none",
+      "tier": 1,
+      "notes": "Read-only structural parsing over untrusted bytes. Copies validated byte ranges into a new or empty output directory, bounds candidate size and count, and never extracts or executes archive members."
+    },
+    "entry": {
+      "command": [
+        "python3",
+        "scripts/run.py"
+      ],
+      "args": [
+        {
+          "name": "input",
+          "type": "file",
+          "required": true,
+          "desc": "raw disk image or media blob"
+        },
+        {
+          "name": "outdir",
+          "type": "dir",
+          "required": true,
+          "desc": "new or empty directory for carved archives and manifest"
+        },
+        {
+          "name": "--hits",
+          "type": "file",
+          "required": false,
+          "desc": "disk-image-scan scan.jsonl; omit to scan directly"
+        },
+        {
+          "name": "--max-size",
+          "type": "int",
+          "required": false,
+          "desc": "maximum bytes per archive candidate (default 2 GiB)"
+        },
+        {
+          "name": "--max-candidates",
+          "type": "int",
+          "required": false,
+          "desc": "maximum carved candidate count (default 10000)"
+        }
+      ],
+      "result": {
+        "channel": "stdout",
+        "format": "json",
+        "fields": {
+          "ok": "bool",
+          "image": "string",
+          "candidateCount": "int",
+          "uniqueSha256Count": "int",
+          "candidateLimitReached": "bool",
+          "rejections": "object",
+          "outputDir": "string",
+          "manifest": "string"
+        }
+      }
+    },
+    "payload": {
+      "tool": "(builtin)",
+      "vendored": null,
+      "runner": "scripts/run.py",
+      "pure_stdlib": true,
+      "note": "Reconstructs classic ZIP ranges from EOCD, central-directory, and local-header relationships and RAR4 ranges from a bounded block walk through the end marker. Records exact offsets, SHA-256, and duplicate identities; extraction remains a separate step."
+    },
+    "authority": {
+      "version": 1,
+      "actions": [
+        "read_local_target"
       ],
       "credential_use": false
     }

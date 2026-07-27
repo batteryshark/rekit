@@ -121,6 +121,14 @@ Grouped by what they do; `rekit list` and `rekit caps` are the authoritative cat
 | `pyinstaller-extract` | carve `.pyc` out of PyInstaller executables | python3 |
 | `binwalk-carve` | carve/extract embedded files from firmware images | binwalk (BYO) |
 
+**Disk-image forensics** (read-only source; reports and recovered bytes go to a separate output tree)
+
+| Skill | What | Prereq |
+|---|---|---|
+| `disk-image-scan` | hash an image/range, map MBR/GPT, validate ext/NTFS/FAT/ISO candidates, and locate evidence signatures by byte/LBA offset | python3 |
+| `forensic-archive-carve` | reconstruct validated classic ZIP/RAR4 byte ranges with SHA-256 and duplicate provenance | python3 |
+| `filesystem-recover` | recover files at a sector offset, map NTFS MFT/inode records to names, safely rename unambiguous orphan placeholders, and hash the result tree | tsk_recover + fls (BYO) · python3 |
+
 **PE repair** (Windows — reconstruct dumped or packed PEs)
 
 | Skill | What | Prereq |
@@ -175,6 +183,7 @@ Grouped by what they do; `rekit list` and `rekit caps` are the authoritative cat
 - **Protection research:** `protection-survey` → inspect flagged sites → build a controlled fixture with `cc-build` or `minimal-executable` → analyze the artifact
 - **Windows API behavior:** `frida-trace` for quick globs; `frida-api-trace` when local signatures and typed arguments matter
 - **Android runtime discovery:** `jvm-decompile` → `frida-android-instrument` for loaded classes/method calls → `dex-dump` when runtime-loaded DEX is absent on disk
+- **Disk-image recovery:** `disk-image-scan` → `forensic-archive-carve` for validated archive ranges and/or `filesystem-recover` for a validated filesystem offset → `intellidiff folder-compare --binary` for recovery verification
 
 ## Requirements and runtimes
 

@@ -2,6 +2,7 @@
 skills/*/scripts/node_modules/
 skills/*/scripts/site/
 skills/*/scripts/site-x86_64/
+skills/diaphora-diff/scripts/diaphora/
 
 # Private or locally built native payloads: usable in-place, never redistributed.
 skills/dex-dump/bin/dex-dumper
@@ -17,3 +18,4 @@ __pycache__/
 .DS_Store
 .mypy_cache/
 .ruff_cache/
+.work/
