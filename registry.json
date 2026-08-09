@@ -863,8 +863,8 @@
   },
   "diaphora-diff": {
     "name": "Diaphora Program Diff",
-    "description": "Match functions between two builds of a program with Diaphora, recover symbol names from a build that has them onto stripped builds, and emit per-function pseudocode diffs documenting what changed. Use for version lineage archaeology, renaming stripped binaries from an unstripped sibling, and reconstructing undocumented source changes between releases. Export needs IDA; diffing and reporting are pure Python. Static — analyses and matches, never runs the targets.",
-    "version": "0.1.0",
+    "description": "Compare two program builds with Diaphora, recover symbols onto stripped siblings, emit reviewable pseudocode diffs, and turn the evidence into a highly technical version changelog. Use for patch analysis, release archaeology, version-to-version behavior changes, name recovery, and reconstructing undocumented source history. Export needs IDA; diffing and reporting are pure Python. Static — analyses and matches, never runs the targets.",
+    "version": "0.2.0",
     "capabilities": [
       "diff-binaries",
       "match-functions",

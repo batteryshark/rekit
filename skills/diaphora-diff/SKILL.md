@@ -1,13 +1,15 @@
 ---
 name: diaphora-diff
-description: "Match functions between two builds of a program with Diaphora, recover symbol names from a build that has them onto stripped builds, and emit per-function pseudocode diffs documenting what changed. Use for version lineage archaeology, renaming stripped binaries from an unstripped sibling, and reconstructing undocumented source changes between releases. Export needs IDA; diffing and reporting are pure Python. Static — analyses and matches, never runs the targets."
+description: "Compare two program builds with Diaphora, recover symbols onto stripped siblings, emit reviewable pseudocode diffs, and turn the evidence into a highly technical version changelog. Use for patch analysis, release archaeology, version-to-version behavior changes, name recovery, and reconstructing undocumented source history. Export needs IDA; diffing and reporting are pure Python. Static — analyses and matches, never runs the targets."
 ---
 
 # Diaphora Program Diff
 
 Match functions between two builds of a program, **recover symbol names** from a build
 that has them onto builds that don't, and emit per-function pseudocode diffs that
-document what actually changed.
+document what actually changed. When the requested deliverable is a version changelog,
+follow [Technical changelog workflow](references/technical-changelog.md) after producing
+the report artifacts.
 
 ## When to use
 
@@ -20,6 +22,9 @@ document what actually changed.
 - **Source reconstruction** — recovered C++ mangled names carry `Class::method` plus
   parameter types, which maps binary functions back onto a source tree you're rebuilding.
 - **Patch analysis** — the changed list, sorted by ascending ratio, is the worklist.
+- **Technical changelog** — reconcile every changed and unmatched function, group
+  compiler/layout cascades, and write behavior-level findings with reproducible evidence,
+  verified negatives, uncertainty, and complete function accounting.
 
 Reach for `bindiff` when you want a fast structural answer or you only have Ghidra;
 reach for this when match *quality* matters or you need the pseudocode to read.
@@ -67,6 +72,11 @@ matching substantially better and turns the pseudocode diffs into something read
 | `unmatched.json` | functions Diaphora could not pair on either side |
 | `pseudo/<ratio>_<name>.diff` | unified pseudocode diff per changed function, filename-sorted by ratio so the biggest changes read first |
 | `results.sqlite` | Diaphora's own results database |
+
+For a changelog task, also write `CHANGELOG-<old>-to-<new>.md` beside these artifacts,
+regardless of which side was primary for name propagation. This is an agent-authored
+analysis, not mechanically generated prose: the workflow requires reviewing and
+corroborating the evidence before making semantic claims.
 
 `apply_names.py` never overwrites a function that already has a real name, so it is safe
 to re-run as you recover more names from further pairings.
