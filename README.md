@@ -4,6 +4,8 @@
 
 # rekit
 
+> **Archived (August 2026).** This is a working snapshot, no longer maintained. My reverse-engineering skills now live in a private toolkit, so issues and pull requests here will not be picked up.
+
 rekit is a catalog and dispatcher for reverse-engineering skills that agents,
 automation, and analysts can invoke through one CLI or MCP server. It covers static
 triage, extraction, decompilation, emulation, dynamic observation, and native artifact
